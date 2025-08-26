@@ -1,0 +1,8 @@
+[M::mm_idx_gen::0.502*1.00] collected minimizers
+[M::mm_idx_gen::0.503*1.00] sorted minimizers
+[M::main::0.505*1.00] loaded/built the index for 0 target sequence(s)
+[M::mm_idx_stat] kmer size: 15; skip: 10; is_hpc: 0; #seq: 0
+[M::mm_idx_stat::0.505*1.00] distinct minimizers: 0 (-nan% are singletons); average occurrences: -nan; average spacing: -nan; total length: 0
+[M::main] Version: 2.26-r1175
+[M::main] CMD: minimap2 -t 4 -d index.mmi MtrunA17r5.0-ANR-EGN-r1.9.gtf
+[M::main] Real time: 0.506 sec; CPU: 0.507 sec; Peak RSS: 0.002 GB

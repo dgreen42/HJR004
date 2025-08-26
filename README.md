@@ -1,6 +1,6 @@
-#HJR004 pipeline
+# HJR004 pipeline
 
-Required software:
+### Required software:
  - minimap2
  - samtools
  - R

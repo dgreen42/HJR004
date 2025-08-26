@@ -23,17 +23,17 @@ process check_tools {
 	"""
 }
 
-process index_genome {
+process index_ref {
 	label "HJR004"
 	cpus 4
 	memory "16 GB"
 	input:
 		path ref
 	output:
-		path "genome_index.mmi", emit: index
+		path "index.mmi", emit: index
 	script:
 	"""
-		minimap2 -t 4 -d "genome_index.mmi" ${ref}
+		minimap2 -t 4 -d "index.mmi" ${ref}
 	"""
 }
 
@@ -69,7 +69,7 @@ process count_transcripts {
 		tuple file("bambu_out/HJR004_counts_gene.txt"), file("bambu_out/HJR004_counts_trasncript.txt"), file("bambu_out/HJR004_CPM_transcript.txt"), file("bambu_out/HJR004_extended_annotations.gtf"), file("bambu_out/HJR004_fullLengthCounts_transcripts.txt"), file("bambu_out/HJR_uniqueCounts_transcript.txt")
 	script:
 	"""
-	bambu_cts.R ${genome} ${anno} ${bampath} ${ndr}
+		bambu_cts.R ${genome} ${anno} ${ndr} ${bampath}
 	"""
 }
 
@@ -108,14 +108,12 @@ workflow {
 		throw new Exception(error)
 	}
 
-	check_tools()
-
-	index_genome(ref_anno)
-
 	fq_ch = channel.fromPath(params.fastq + "*.fastq.gz")
-	align_and_map(fq_ch, index_genome.out.index, ref_genome)
-	println(align_and_map.out.bampath)
+	check_tools()
+	index_ref(ref_anno)
+	align_and_map(fq_ch, index_ref.out.index, ref_genome)
 	count_transcripts(ref_genome, ref_anno, params.ndr, align_and_map.out.bampath)
+
 }
 
 workflow.onComplete {

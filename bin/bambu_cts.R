@@ -6,15 +6,17 @@ args <- commandArgs(trailingOnly = T)
 #arg1: genome
 #arg2: annotation
 #arg3: ndr
+#arg4: bampath
 
 print(args[1])
 print(args[2])
 print(args[3])
+print(args[4])
 
 genome <- file.path(args[1])
 annotation <- file.path(args[2])
 prepAnno <- prepareAnnotations(annotation)
-samples <- list.files(path = "aln", recursive = T, full.names = T)
+samples <- list.files(path = args[4], recursive = T, full.names = T)
 
 analysis <- bambu(reads = samples, annotations = prepAnno, genome = genome, NDR = as.numeric(args[3]))
 writeBambuOutput(analysis, path = "bambu_out", prefix = "HJR004_")
