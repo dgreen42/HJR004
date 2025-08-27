@@ -1,2 +1,2 @@
-rm -r .nextflow work initialize aln
+rm -r .nextflow work aln
 rm .nextflow.log

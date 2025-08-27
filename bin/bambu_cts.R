@@ -1,22 +1,24 @@
 #!/usr/bin/env Rscript
-suppressMessages(library(bambu))
+library(bambu)
+library(dplyr)
 
 args <- commandArgs(trailingOnly = T)
 
 #arg1: genome
 #arg2: annotation
 #arg3: ndr
-#arg4: bampath
+#arg4..n: bams
 
-print(args[1])
-print(args[2])
-print(args[3])
-print(args[4])
+hold_args <- c()
+for(i in 1:length(args)) {
+	hold_args[i] <- args[i]
+}
 
 genome <- file.path(args[1])
 annotation <- file.path(args[2])
 prepAnno <- prepareAnnotations(annotation)
-samples <- list.files(path = args[4], recursive = T, full.names = T)
+samples <- hold_args[4:length(args)]
+rm(hold_args)
 
 analysis <- bambu(reads = samples, annotations = prepAnno, genome = genome, NDR = as.numeric(args[3]))
 writeBambuOutput(analysis, path = "bambu_out", prefix = "HJR004_")

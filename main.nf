@@ -47,11 +47,11 @@ process align_and_map {
 		val idx
 		val genome
 	output:
-		path "${fastq.baseName}_aln.bam", emit: bampath
+		path "${fastq.baseName}_filtered.bam", emit: bampath
 	script:
 	"""
-		minimap2 -ax splice -uf -k14 ${idx} ${fastq} \
-		| samtools view -q 10 -m 20 -F 0x304 -o ${fastq.baseName}_aln.bam
+		minimap2 -ax splice -uf -k14 ${idx} ${fastq} > ${fastq.baseName}_aln.bam
+		samtools view -q 10 -m 20 -F 0x304 ${fastq.baseName}_aln.bam > ${fastq.baseName}_filtered.bam
 	"""
 }
 
@@ -64,12 +64,32 @@ process count_transcripts {
 		val genome
 		val anno
 		val ndr
-		val bampath
+		path bams
 	output:
-		tuple file("bambu_out/HJR004_counts_gene.txt"), file("bambu_out/HJR004_counts_trasncript.txt"), file("bambu_out/HJR004_CPM_transcript.txt"), file("bambu_out/HJR004_extended_annotations.gtf"), file("bambu_out/HJR004_fullLengthCounts_transcripts.txt"), file("bambu_out/HJR_uniqueCounts_transcript.txt")
+		path "bambu_out/HJR004_counts_gene.txt"
+		path "bambu_out/HJR004_counts_trasncript.txt", emit: transcript
+		path "bambu_out/HJR004_CPM_transcript.txt"
+		path "bambu_out/HJR004_extended_annotations.gtf"
+		path "bambu_out/HJR004_fullLengthCounts_transcripts.txt"
+		path "bambu_out/HJR_uniqueCounts_transcript.txt"
 	script:
 	"""
-		bambu_cts.R ${genome} ${anno} ${ndr} ${bampath}
+		bambu_cts.R ${genome} ${anno} ${ndr} ${bams}
+	"""
+}
+
+process stage_wise_analysis {
+	label "HJR004"
+	cpus 4
+	memory "16GB"
+	input:
+		val hold
+	output:
+		path "cts/de_coefficients.csv"
+		path "cts/de_results.csv"
+		path "cts/de_summary.csv"
+	script:
+	"""
 	"""
 }
 
@@ -108,11 +128,12 @@ workflow {
 		throw new Exception(error)
 	}
 
-	fq_ch = channel.fromPath(params.fastq + "*.fastq.gz")
 	check_tools()
 	index_ref(ref_anno)
+	fq_ch = channel.fromPath(params.fastq + "*.fastq.gz")
 	align_and_map(fq_ch, index_ref.out.index, ref_genome)
-	count_transcripts(ref_genome, ref_anno, params.ndr, align_and_map.out.bampath)
+	bams = align_and_map.out.bampath.collect(x -> file(x, type: "file"))
+	count_transcripts(ref_genome, ref_anno, params.ndr, bams)
 
 }
 
