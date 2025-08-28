@@ -79,7 +79,6 @@ process count_transcripts {
 		path "bambu_out/HJR004_fullLengthCounts_transcripts.txt"
 		path "bambu_out/HJR_uniqueCounts_transcript.txt"
 	script:
-	println(bams)
 	"""
 		bambu_cts.R ${genome} ${anno} ${ndr} ${bams}
 	"""
@@ -143,8 +142,7 @@ workflow {
 	index_ref(ref_anno, ref_genome)
 	fq_ch = channel.fromPath(params.fastq + "*.fastq.gz")
 	align_and_map(fq_ch, index_ref.out.index, index_ref.out.fai, ref_genome)
-	//bams = align_and_map.out.bampath.collect(x -> file(x, type: "file"))
-	bams = align_and_map.out.bampath.collect(x -> x)
+	bams = align_and_map.out.bampath.collect(x -> file(x, type: "file"))
 	count_transcripts(ref_genome, ref_anno, params.ndr, bams)
 	stage_wise_analysis(count_transcripts.out.transcripts, ref_anno, sample_sheet)
 }

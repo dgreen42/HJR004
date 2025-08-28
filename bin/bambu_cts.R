@@ -1,7 +1,9 @@
 #!/usr/bin/env Rscript
 library(bambu)
 library(dplyr)
+library(tools)
 
+source("../../../bin/utils.R")
 args <- commandArgs(trailingOnly = T)
 
 #arg1: genome
@@ -10,9 +12,12 @@ args <- commandArgs(trailingOnly = T)
 #arg4..n: bams
 
 hold_args <- c()
-for(i in 1:length(args)) {
-	hold_args[i] <- args[i]
+for(i in 4:length(args)) {
+	hold_args[i] <- file_path_as_absolute(args[i])
 }
+samples <- ramna(hold_args)
+print(samples)
+
 
 genome <- file.path(args[1])
 annotation <- file.path(args[2])
