@@ -112,5 +112,8 @@ count <- 0
 for(gene in unique(padj$geneID)) {
     count <- count + 1
     altsplice[count,] <- plotIsoform(strsplit(gene, ";")[[1]][2], annotation = "./bambu_out_NDR_3_filtered/Harris_JR_RNA_004_NDR_3_extended_annotations.gtf" , exon_marker = T,
-            acronym_list = "./LeGOO-Currated-GeneNames.csv")
+            acronym_list = "./LeGOO-Currated-GeneNames.csv",
+	    suppress_plot = T)
 }
+
+write.csv(altsplice, "altsplice.csv")

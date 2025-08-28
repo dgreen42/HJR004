@@ -258,12 +258,17 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
                     props = plist
         )
     } else { 
-        return(list(start = xlimit[1],
-                    end = xlimit[2],
+        transcripts <- unique(featureFrame$transcriptid)
+        ts <- ""
+        for(i in transcripts) {
+            ts <- paste(ts, i)
+        }
+        xlimit =  c(as.integer(min(featureFrame$start)), as.integer(max(featureFrame$end)))
+        return(list(start = xlimit[1], 
+                    end = xlimit[2], 
                     transcripts = ts,
                     acronym = gene_name,
-                    strand = featureFrame$strand[1]),
-	)
+                    strand = featureFrame$strand[1])) 
     }
 }
 

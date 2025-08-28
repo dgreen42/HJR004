@@ -29,11 +29,14 @@ process index_ref {
 	memory "16 GB"
 	input:
 		path ref
+		path genome
 	output:
 		path "index.mmi", emit: index
+		path "${genome}.fai", emit: fai
 	script:
 	"""
 		minimap2 -t 4 -d "index.mmi" ${ref}
+		samtools faidx ${genome}
 	"""
 }
 
@@ -45,13 +48,16 @@ process align_and_map {
 	input:
 		each fastq
 		val idx
+		val fai
 		val genome
 	output:
 		path "${fastq.baseName}_filtered.bam", emit: bampath
 	script:
 	"""
 		minimap2 -ax splice -uf -k14 ${idx} ${fastq} > ${fastq.baseName}_aln.bam
-		samtools view -q 10 -m 20 -F 0x304 ${fastq.baseName}_aln.bam > ${fastq.baseName}_filtered.bam
+		samtools view -bT ${genome} -o ${fastq.baseName}_out.bam ${fastq.baseName}_aln.bam
+		samtools sort -o ${fastq.baseName}_sorted.bam ${fastq.baseName}_out.bam
+		samtools view -q 10 -m 20 -F 0x304 -t ${fai} -o ${fastq.baseName}_filtered.bam ${fastq.baseName}_sorted.bam
 	"""
 }
 
@@ -67,12 +73,13 @@ process count_transcripts {
 		path bams
 	output:
 		path "bambu_out/HJR004_counts_gene.txt"
-		path "bambu_out/HJR004_counts_trasncript.txt", emit: transcript
+		path "bambu_out/HJR004_counts_trasncript.txt", emit: transcripts
 		path "bambu_out/HJR004_CPM_transcript.txt"
 		path "bambu_out/HJR004_extended_annotations.gtf"
 		path "bambu_out/HJR004_fullLengthCounts_transcripts.txt"
 		path "bambu_out/HJR_uniqueCounts_transcript.txt"
 	script:
+	println(bams)
 	"""
 		bambu_cts.R ${genome} ${anno} ${ndr} ${bams}
 	"""
@@ -83,13 +90,17 @@ process stage_wise_analysis {
 	cpus 4
 	memory "16GB"
 	input:
-		val hold
+		val counts
+		val anno
+		val sample_sheet
 	output:
 		path "cts/de_coefficients.csv"
 		path "cts/de_results.csv"
 		path "cts/de_summary.csv"
+		path "cts/altsplice.csv"
 	script:
 	"""
+		diff_splice_stageR.R ${counts} ${anno} ${sample_sheet}
 	"""
 }
 
@@ -129,12 +140,13 @@ workflow {
 	}
 
 	check_tools()
-	index_ref(ref_anno)
+	index_ref(ref_anno, ref_genome)
 	fq_ch = channel.fromPath(params.fastq + "*.fastq.gz")
-	align_and_map(fq_ch, index_ref.out.index, ref_genome)
-	bams = align_and_map.out.bampath.collect(x -> file(x, type: "file"))
+	align_and_map(fq_ch, index_ref.out.index, index_ref.out.fai, ref_genome)
+	//bams = align_and_map.out.bampath.collect(x -> file(x, type: "file"))
+	bams = align_and_map.out.bampath.collect(x -> x)
 	count_transcripts(ref_genome, ref_anno, params.ndr, bams)
-
+	stage_wise_analysis(count_transcripts.out.transcripts, ref_anno, sample_sheet)
 }
 
 workflow.onComplete {
