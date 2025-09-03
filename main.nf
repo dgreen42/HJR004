@@ -28,15 +28,12 @@ process index_ref {
 	cpus 4
 	memory "16 GB"
 	input:
-		path ref
 		path genome
 	output:
 		path "index.mmi", emit: index
-		path "${genome}.fai", emit: fai
 	script:
 	"""
-		minimap2 -t 4 -d "index.mmi" ${ref}
-		samtools faidx ${genome}
+		minimap2 -d "index.mmi" ${genome}
 	"""
 }
 
@@ -48,16 +45,14 @@ process align_and_map {
 	input:
 		each fastq
 		val idx
-		val fai
 		val genome
 	output:
 		path "${fastq.baseName}_filtered.bam", emit: bampath
 	script:
 	"""
-		minimap2 -ax splice -uf -k14 ${idx} ${fastq} > ${fastq.baseName}_aln.bam
-		samtools view -bT ${genome} -o ${fastq.baseName}_out.bam ${fastq.baseName}_aln.bam
-		samtools sort -o ${fastq.baseName}_sorted.bam ${fastq.baseName}_out.bam
-		samtools view -q 10 -m 20 -F 0x304 -t ${fai} -o ${fastq.baseName}_filtered.bam ${fastq.baseName}_sorted.bam
+		minimap2 -ax splice -uf -k14 ${idx} ${fastq} > ${fastq.baseName}_aln.sam
+		samtools view -bT ${genome} -o ${fastq.baseName}_out.bam ${fastq.baseName}_aln.sam
+		samtools view -q 10 -m 20 -F 2304 -o ${fastq.baseName}_filtered.bam ${fastq.baseName}_out.bam
 	"""
 }
 
@@ -66,6 +61,7 @@ process count_transcripts {
 	cpus 4
 	memory "16 GB"
 	publishDir "cts", mode: "copy"
+	errorStrategy 'ignore'
 	input:
 		val genome
 		val anno
@@ -73,7 +69,7 @@ process count_transcripts {
 		path bams
 	output:
 		path "bambu_out/HJR004_counts_gene.txt"
-		path "bambu_out/HJR004_counts_trasncript.txt", emit: transcripts
+		path "bambu_out/HJR004_counts_transcript.txt", emit: transcripts
 		path "bambu_out/HJR004_CPM_transcript.txt"
 		path "bambu_out/HJR004_extended_annotations.gtf"
 		path "bambu_out/HJR004_fullLengthCounts_transcripts.txt"
@@ -139,9 +135,9 @@ workflow {
 	}
 
 	check_tools()
-	index_ref(ref_anno, ref_genome)
+	index_ref(ref_genome)
 	fq_ch = channel.fromPath(params.fastq + "*.fastq.gz")
-	align_and_map(fq_ch, index_ref.out.index, index_ref.out.fai, ref_genome)
+	align_and_map(fq_ch, index_ref.out.index, ref_genome)
 	bams = align_and_map.out.bampath.collect(x -> file(x, type: "file"))
 	count_transcripts(ref_genome, ref_anno, params.ndr, bams)
 	stage_wise_analysis(count_transcripts.out.transcripts, ref_anno, sample_sheet)
