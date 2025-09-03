@@ -427,6 +427,9 @@ regUnique <- function(reg1, reg2, compReg, master, geneLookup, setNames = NULL) 
 }
 
 isoformProp2 <- function(counts) {
+    t <- 0
+    f <- 0
+    s <- 0
     len <- nrow(counts)
     props <- data.frame(TXNAME = NA, GENEID = NA, genetotal = NA, isototal = NA, prop = NA)
     genes <- unique(counts$GENEID)
@@ -442,12 +445,15 @@ isoformProp2 <- function(counts) {
                                sum(set[i,3:ncol(set)])/genetotal
             )
             count <- count + 1
-            if (count > len*0.25 && count < len*0.251) {
+            if (count > len*0.25 && count < len*0.251 && t == 0) {
                 print("--- 25% complete ---")
-            } else if (count > len*0.5 && count < len*0.51) {
+	    	t <- 1
+            } else if (count > len*0.5 && count < len*0.51 && f == 0) {
                 print("--- 50% complete ---")
-            } else if (count > len*0.75 && count < len*0.751) {
+	    	f <- 1
+            } else if (count > len*0.75 && count < len*0.751 && s == 0) {
                 print("--- 75% complete ---")
+	    	s <- 1
             }
         }
     }

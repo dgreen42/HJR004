@@ -20,6 +20,7 @@ process check_tools {
 	minimap2 --version | sed 's/^/minimap2,/' >> tool_versions.txt
 	samtools --version | head -n1 >> tool_versions.txt
 	R --version | head -n1 >> tool_versions.txt
+	nanopolish --version | head -n1 >> tool_versions.txt
 	"""
 }
 
@@ -61,7 +62,6 @@ process count_transcripts {
 	cpus 4
 	memory "16 GB"
 	publishDir "cts", mode: "copy"
-	errorStrategy 'ignore'
 	input:
 		val genome
 		val anno
@@ -72,8 +72,8 @@ process count_transcripts {
 		path "bambu_out/HJR004_counts_transcript.txt", emit: transcripts
 		path "bambu_out/HJR004_CPM_transcript.txt"
 		path "bambu_out/HJR004_extended_annotations.gtf"
-		path "bambu_out/HJR004_fullLengthCounts_transcripts.txt"
-		path "bambu_out/HJR_uniqueCounts_transcript.txt"
+		path "bambu_out/HJR004_fullLengthCounts_transcript.txt"
+		path "bambu_out/HJR004_uniqueCounts_transcript.txt"
 	script:
 	"""
 		bambu_cts.R ${genome} ${anno} ${ndr} ${bams}
@@ -84,18 +84,53 @@ process stage_wise_analysis {
 	label "HJR004"
 	cpus 4
 	memory "16GB"
+	publishDir "analysis", mode: "copy"
 	input:
 		val counts
 		val anno
 		val sample_sheet
 	output:
-		path "cts/de_coefficients.csv"
-		path "cts/de_results.csv"
-		path "cts/de_summary.csv"
-		path "cts/altsplice.csv"
+		path "analysis/de_coefficients.csv"
+		path "analysis/de_results.csv"
+		path "analysis/de_summary.csv"
+		path "analysis/dex_adjusted_pval.csv"
+		path "analysis/dex_altsplice.csv"
+		path "analysis/dex_isoform_proportions.csv"
 	script:
 	"""
 		diff_splice_stageR.R ${counts} ${anno} ${sample_sheet}
+	"""
+}
+
+process index_methylation {
+	label "HJR004"
+	cpus 4
+	memory "16GB"
+	input:
+		val fastq_dir
+	output:
+		path "meth_index.fastq.index"
+		path "meth_index.fastq.index.fai"
+		path "meth_index.fastq.fastq.index.gzi"
+		path "meth_index.fastq.index.readdb"
+	script:
+	"""
+		nanopolish index -d ${fastq_dir} meth_index.fastq
+	"""
+}
+
+process methylation_analysis {
+	label "HJR004"
+	cpus 4
+	memory "16GB"
+	publishDir "methylation", mode: "copy"
+	input:
+		val hold
+	output: 
+		path "somepath"
+	script:
+	"""
+		echo "hi"
 	"""
 }
 

@@ -3,14 +3,18 @@ library(stageR)
 library(edgeR)
 library(DEXSeq)
 
-source("utils.R")
+source("../../../bin/utils.R")
 args <- commandArgs(trailingOnly = T)
 
 #arg1: counts file
 #arg2: anno
 #arg3: sample_sheet
 
-cts <- read.delim(args[1])
+#file_path <- file_path_as_absolute(args[1])
+file_path <- args[1]
+print(file_path)
+
+cts <- read.delim(file_path)
 rownames(cts) <- cts$TXNAME
 cts <- cts[,3:ncol(cts)]
 head(cts)
@@ -104,6 +108,8 @@ stageRTxObj <- stageRTx(pScreen = pScreen,
                         )
 stageRTxObj <- stageWiseAdjustment(object = stageRTxObj, method = "dtu", alpha = 0.05, allowNA = T)
 padj <- getAdjustedPValues(stageRTxObj, order = T, onlySignificantGenes = T)
+props <- isoformaProp2(cts)
+
 altcolnames <- c("start", "end", "transcripts", "acronym", "strand")
 altsplice <- data.frame(matrix(NA, nrow = 1, ncol = 5))
 colnames(altsplice) <- altcolnames
@@ -116,4 +122,6 @@ for(gene in unique(padj$geneID)) {
 	    suppress_plot = T)
 }
 
-write.csv(altsplice, "altsplice.csv")
+write.csv(padj, "dex_adjusted_pval.csv")
+write.csv(props, "dex_isoform_proportions.csv")
+write.csv(altsplice, "dex_altsplice.csv")
