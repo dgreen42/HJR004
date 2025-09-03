@@ -4,7 +4,7 @@ From: ubuntu:22.04
 %post
 	export DEBIAN_FRONTEND='noninteractive'
 	apt-get -y update
-	apt-get -y install samtools minimap2 r-base git gcc wget
+	apt-get -y install samtools minimap2 r-base git gcc wget libhts-dev libarchive-dev
 	git clone --recursive https://github.com/jts/nanopolish.git
 	cd nanopolish
 	make
