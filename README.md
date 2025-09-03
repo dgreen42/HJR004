@@ -8,7 +8,7 @@
 
 ### Example run
 
-`
+```
 nextflow run main.nf \
 
 --fastq 'fastq_dir' \
@@ -18,4 +18,4 @@ nextflow run main.nf \
 --ref_genome 'genome.fasta' \
 
 --sample_sheet 'samples.csv'
-`
+```
