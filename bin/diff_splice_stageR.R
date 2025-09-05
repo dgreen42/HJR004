@@ -23,7 +23,6 @@ dge <- DGEList(counts = cts, group = group)
 head(dge)
 expDesign <- model.matrix(~0+group, data = dge$samples)
 colnames(expDesign) <- levels(dge$samples$group)
-expDesign
 cmpOffset <- 2
 keep <- rowSums(cpm(round(cts, digit = 0))>cmpOffset) >= 2
 dge <- DGEList(cts[keep,])
@@ -53,10 +52,10 @@ dimnames(pConf) <- list(rownames(fit2), c("n-i", "n-m", "i-m"))
 stageRObj <- stageR(pScreen = pScreen, pConfirmation = pConf, pScreenAdjusted = F)
 stageRObj <- stageWiseAdjustment(object = stageRObj, method = "none", alpha = alpha)
 res <- getResults(stageRObj)
-colSums(res)
 
 resCounts <- count_udns(res)
 
+print("de done")
 
 # differential exon expression ----
 

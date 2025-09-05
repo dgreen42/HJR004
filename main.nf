@@ -4,11 +4,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+include {methylation_analysis} from "./workflows/methylation_analysis.nf"
+
 params.fastq = null 
 params.ref_annotation = null
 params.ref_genome = null
 params.sample_sheet = null
 params.ndr = 3
+params.m6A_analysis = false
 
 process check_tools {
 	label "HJR004"
@@ -48,12 +51,11 @@ process align_and_map {
 		val idx
 		val genome
 	output:
-		path "${fastq.baseName}_filtered.bam", emit: bampath
+		path "${fastq.baseName}_filtered_sorted.bam", emit: bampath
 	script:
 	"""
 		minimap2 -ax splice -uf -k14 ${idx} ${fastq} > ${fastq.baseName}_aln.sam
-		samtools view -bT ${genome} -o ${fastq.baseName}_out.bam ${fastq.baseName}_aln.sam
-		samtools view -q 10 -m 20 -F 2304 -o ${fastq.baseName}_filtered.bam ${fastq.baseName}_out.bam
+		samtools view -q 10 -m 20 -F 2304 -bT ${genome} ${fastq.baseName}_aln.sam | samtools sort -o ${fastq.baseName}_filtered_sorted.bam
 	"""
 }
 
@@ -101,39 +103,6 @@ process stage_wise_analysis {
 		diff_splice_stageR.R ${counts} ${anno} ${sample_sheet}
 	"""
 }
-
-process index_methylation {
-	label "HJR004"
-	cpus 4
-	memory "16GB"
-	input:
-		val fastq_dir
-	output:
-		path "meth_index.fastq.index"
-		path "meth_index.fastq.index.fai"
-		path "meth_index.fastq.fastq.index.gzi"
-		path "meth_index.fastq.index.readdb"
-	script:
-	"""
-		nanopolish index -d ${fastq_dir} meth_index.fastq
-	"""
-}
-
-process methylation_analysis {
-	label "HJR004"
-	cpus 4
-	memory "16GB"
-	publishDir "methylation", mode: "copy"
-	input:
-		val hold
-	output: 
-		path "somepath"
-	script:
-	"""
-		echo "hi"
-	"""
-}
-
 workflow {
 
 	error = null
@@ -174,6 +143,11 @@ workflow {
 	fq_ch = channel.fromPath(params.fastq + "*.fastq.gz")
 	align_and_map(fq_ch, index_ref.out.index, ref_genome)
 	bams = align_and_map.out.bampath.collect(x -> file(x, type: "file"))
+	
+	if (params.m6A_analysis) {
+		me = methylation_analysis(fastq, bams, ref_genome)
+	}
+
 	count_transcripts(ref_genome, ref_anno, params.ndr, bams)
 	stage_wise_analysis(count_transcripts.out.transcripts, ref_anno, sample_sheet)
 }
