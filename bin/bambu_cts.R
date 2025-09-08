@@ -1,6 +1,5 @@
 #!/usr/bin/env Rscript
 library(bambu)
-library(dplyr)
 library(tools)
 
 source("../../../bin/utils.R")

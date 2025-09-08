@@ -12,13 +12,26 @@ args <- commandArgs(trailingOnly = T)
 
 #file_path <- file_path_as_absolute(args[1])
 file_path <- args[1]
+sample_sheet_path <- args[3]
 print(file_path)
-
+print(sample_sheet_path)
+sample_sheet <- read.csv(sample_sheet_path)
 cts <- read.delim(file_path)
 rownames(cts) <- cts$TXNAME
 cts <- cts[,3:ncol(cts)]
-head(cts)
-group <- rep(c("nod" ,"irt" ,"mrt"), 3)
+sample_sheet
+cols <- colnames(cts)
+cols
+group <- c()
+for (i in 1:length(cols)) {
+    colsp <- strsplit(cols[i], "[.]")[[1]][1]
+    for (j in 1:nrow(sample_sheet)) {
+        if (colsp == sample_sheet$sample[j]) {
+            group[i] <- trimws(sample_sheet$treatment[j])
+        }
+    }
+}
+group
 dge <- DGEList(counts = cts, group = group)
 head(dge)
 expDesign <- model.matrix(~0+group, data = dge$samples)
@@ -53,7 +66,8 @@ stageRObj <- stageR(pScreen = pScreen, pConfirmation = pConf, pScreenAdjusted = 
 stageRObj <- stageWiseAdjustment(object = stageRObj, method = "none", alpha = alpha)
 res <- getResults(stageRObj)
 
-resCounts <- count_udns(res)
+write.csv(res, "adjusted_results.csv")
+write.csv(colSums(res), "adjusted_results_summary.csv")
 
 print("de done")
 
@@ -68,8 +82,8 @@ tx2gene <- cts[,1:2]
 colnames(tx2gene) <- c("transcript", "gene")
 tcts <- cts[,3:ncol(cts)]
 tx2dist <- table(table(tx2gene$gene))
-barplot(tx2dist, main = "Dist of Transcript per Gene")
-sampleData <- read.csv(arg[3])
+write.csv(tx2dist, "taxa_to_gene_distribution.csv")
+sampleData <- read.csv(args[3])
 rownames(sampleData) <- colnames(tcts)
 sampleData <- sampleData[,2:3]
 # this is the same as cts$GENEID
@@ -107,7 +121,7 @@ stageRTxObj <- stageRTx(pScreen = pScreen,
                         )
 stageRTxObj <- stageWiseAdjustment(object = stageRTxObj, method = "dtu", alpha = 0.05, allowNA = T)
 padj <- getAdjustedPValues(stageRTxObj, order = T, onlySignificantGenes = T)
-props <- isoformaProp2(cts)
+props <- isoformProp2(cts)
 
 altcolnames <- c("start", "end", "transcripts", "acronym", "strand")
 altsplice <- data.frame(matrix(NA, nrow = 1, ncol = 5))
