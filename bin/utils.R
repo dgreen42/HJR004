@@ -1,5 +1,6 @@
 # These are utility functions
 library(RColorBrewer)
+library(foreach)
 
 plotSpliceReg <- function(data, set, GeneID, order = NULL) {
     par(mai = c(1.02,0.82,0.82,0.42), xpd = F)
@@ -56,7 +57,31 @@ tryAcroGrep <- function(gene, acronym_list) {
 
 plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_list = NULL, suppress_plot = F) {
     par(xpd = F)
-    grepd <- system2("grep", args = paste(gene, annotation), stdout = T)
+    tryCatch(grepd <- system2("grep", args = paste(gene, annotation), stdout = T),
+	     error = function(cond) {
+		     message(conditionMessage(cond))
+		     return(list(start = NA, 
+				 end = NA, 
+				 transcripts = NA,
+				 acronym = NA,
+				 strand = NA))
+	     },
+	     warning = function(cond) {
+		     message(conditionMessage(cond))
+	     },
+	     finally = {
+		     if (exists("grepd")) {
+			     message("grep successful")
+		     } else {
+			     return(list(start = NA, 
+					 end = NA, 
+					 transcripts = NA,
+					 acronym = NA,
+					 strand = NA))
+		     }
+	     }
+    )
+
     rawFeatures <- strsplit(grepd, split = "\t")
     featureFrame <- data.frame(matrix(NA, ncol = length(rawFeatures[[1]]), nrow = length(rawFeatures)))
     colnames(featureFrame) <- c("seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute")
@@ -455,6 +480,38 @@ isoformProp2 <- function(counts) {
                 print("--- 75% complete ---")
 	    	s <- 1
             }
+        }
+    }
+    return(props)
+}
+
+isoformProp3 <- function(counts) {
+    len <- nrow(counts)
+    props <- data.frame(TXNAME = NA, GENEID = NA, genetotal = NA, isototal = NA, prop = NA)
+    genes <- unique(counts$GENEID)
+    count <- 1
+    cores <- parallel::detectCores() - 1
+    cluster <- parallel::makeCluster(
+        cores,
+        type = "PSOCK"
+    )
+    doParallel::registerDoParallel(cl = cluster)
+    print(foreach::getDoParRegistered())
+    print(foreach::getDoParWorkers())
+    foreach(
+        gene = genes,
+        .combine = 'rbind'
+    ) %dopar% {
+        set <- counts[counts$GENEID == gene,]
+        genetotal <- sum(set[,3:ncol(set)])
+        for(i in 1:nrow(set)) {
+            props[count,] <- c(set$TXNAME[i],
+                               set$GENEID[i],
+                               genetotal,
+                               sum(set[i,3:ncol(set)]),
+                               sum(set[i,3:ncol(set)])/genetotal
+            )
+            count <- count + 1
         }
     }
     return(props)

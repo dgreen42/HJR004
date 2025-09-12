@@ -14,7 +14,7 @@
 There are extra plotting functions in the utility script (bin/utils.R) that can be used to visualize results from the pipeline. Inputs for these functions come from the output of the pipeline. The plotting functions use the following inputs from the listed outputs:
 
  - propTable: analysis/dex_isoform_proportions.csv
- - gene: cts/bambu_out/HJR4_counts_transcript.txt; field: GENEID
+ - gene: cts/bambu_out/HJR004_counts_transcript.txt; field: GENEID
  - annotation: annotation from resources
  - acronym_list: acronym list from resources
 

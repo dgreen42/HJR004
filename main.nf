@@ -92,15 +92,15 @@ process stage_wise_analysis {
 		val anno
 		val sample_sheet
 	output:
-		path "analysis/de_coefficients.csv"
-		path "analysis/de_results.csv"
-		path "analysis/de_summary.csv"
-		path "analysis/adjusted_results.csv"
-		path "analysis/adjusted_results_summary.csv"
-		path "analysis/taxa_to_gene_distribution.csv"
-		path "analysis/dex_adjusted_pval.csv"
-		path "analysis/dex_altsplice.csv"
-		path "analysis/dex_isoform_proportions.csv"
+		path "de_coefficients.csv"
+		path "de_results.csv"
+		path "de_summary.csv"
+		path "adjusted_results.csv"
+		path "adjusted_results_summary.csv"
+		path "taxa_to_gene_distribution.csv"
+		path "dex_adjusted_pval.csv"
+		path "dex_altsplice.csv"
+		path "dex_isoform_proportions.csv"
 	script:
 	"""
 		diff_splice_stageR.R ${counts} ${anno} ${sample_sheet}
