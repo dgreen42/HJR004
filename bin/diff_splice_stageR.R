@@ -9,31 +9,33 @@ args <- commandArgs(trailingOnly = T)
 #arg1: counts file
 #arg2: anno
 #arg3: sample_sheet
+#arg4: acronym_list
 
 #file_path <- file_path_as_absolute(args[1])
 file_path <- args[1]
 sample_sheet_path <- args[3]
-print(file_path)
-print(sample_sheet_path)
 sample_sheet <- read.csv(sample_sheet_path)
 cts <- read.delim(file_path)
 rownames(cts) <- cts$TXNAME
 cts <- cts[,3:ncol(cts)]
-sample_sheet
 cols <- colnames(cts)
-cols
 group <- c()
+n <- c()
+samp <- c()
 for (i in 1:length(cols)) {
     colsp <- strsplit(cols[i], "[.]")[[1]][1]
     for (j in 1:nrow(sample_sheet)) {
         if (colsp == sample_sheet$sample[j]) {
             group[i] <- trimws(sample_sheet$treatment[j])
+            n[i] <- trimws(sample_sheet$group[j])
+	    samp[i] <- trimws(sample_sheet$sample[j])
         }
     }
 }
-group
+allData <- c(samp, n, group)
+sampleData <- data.frame(matrix(allData, ncol = ncol(sample_sheet), nrow(sample_sheet))) 
+colnames(sampleData) <- colnames(sample_sheet)
 dge <- DGEList(counts = cts, group = group)
-head(dge)
 expDesign <- model.matrix(~0+group, data = dge$samples)
 colnames(expDesign) <- levels(dge$samples$group)
 cmpOffset <- 2
@@ -47,7 +49,6 @@ contrast.matrix <- makeContrasts(nod-irt, nod-mrt, irt-mrt, levels = expDesign)
 fit2 <- contrasts.fit(fit, contrast.matrix)
 fit2 <- eBayes(fit2)
 de <- decideTests(fit2)
-summary.TestResults(de)
 
 write.csv(fit2$coefficients, file = "de_coefficients.csv")
 write.csv(de, file = "de_results.csv")
@@ -69,12 +70,10 @@ res <- getResults(stageRObj)
 write.csv(res, "adjusted_results.csv")
 write.csv(colSums(res), "adjusted_results_summary.csv")
 
-print("de done")
 
 # differential exon expression ----
 
 cts <- read.delim(args[1])
-anno <- read.delim(args[2])
 
 rownames(cts) <- cts$TXNAME
 
@@ -83,8 +82,7 @@ colnames(tx2gene) <- c("transcript", "gene")
 tcts <- cts[,3:ncol(cts)]
 tx2dist <- table(table(tx2gene$gene))
 write.csv(tx2dist, "taxa_to_gene_distribution.csv")
-sampleData <- read.csv(args[3])
-rownames(sampleData) <- colnames(tcts)
+rownames(sampleData) <- sampleData[,1]
 sampleData <- sampleData[,2:3]
 # this is the same as cts$GENEID
 geneForEachTx <- tx2gene[match(rownames(tcts), tx2gene[,1]),2]
@@ -94,14 +92,11 @@ dxd <- DEXSeqDataSet(countData = round(tcts, digit = 0),
                      featureID = rownames(tcts),
                      groupID = as.character(geneForEachTx)
 )
-
 dxd <- estimateSizeFactors(dxd)
 dxd <- estimateDispersions(dxd)
 dxd <- testForDEU(dxd, reducedModel = ~ sample + exon + group)
 dxr <- DEXSeqResults(dxd)
 qvalDxr <- perGeneQValue(dxr)
-
-
 # stage wise analysis
 
 pConf <- matrix(dxr$pvalue, ncol = 1)
@@ -121,20 +116,21 @@ stageRTxObj <- stageRTx(pScreen = pScreen,
                         )
 stageRTxObj <- stageWiseAdjustment(object = stageRTxObj, method = "dtu", alpha = 0.05, allowNA = T)
 padj <- getAdjustedPValues(stageRTxObj, order = T, onlySignificantGenes = T)
-props <- isoformProp2(cts)
+#props <- isoformProp2(cts)
+props <- NA
 
 altcolnames <- c("start", "end", "transcripts", "acronym", "strand")
 altsplice <- data.frame(matrix(NA, nrow = 1, ncol = 5))
 colnames(altsplice) <- altcolnames
 count <- 0
 
+write.csv(padj, "dex_adjusted_pval.csv")
+
 for(gene in unique(padj$geneID)) {
     count <- count + 1
-    altsplice[count,] <- plotIsoform(strsplit(gene, ";")[[1]][2], annotation = "./bambu_out_NDR_3_filtered/Harris_JR_RNA_004_NDR_3_extended_annotations.gtf" , exon_marker = T,
-            acronym_list = "./LeGOO-Currated-GeneNames.csv",
-	    suppress_plot = T)
+    altsplice[count,] <- plotIsoform(strsplit(gene, ";")[[1]][2], annotation = args[2] , exon_marker = F, acronym_list = args[4], suppress_plot = T)
+    print(altsplice[count,])
 }
 
-write.csv(padj, "dex_adjusted_pval.csv")
 write.csv(props, "dex_isoform_proportions.csv")
 write.csv(altsplice, "dex_altsplice.csv")

@@ -10,6 +10,7 @@ params.fastq = null
 params.ref_annotation = null
 params.ref_genome = null
 params.sample_sheet = null
+params.acronym_list = null
 params.ndr = 3
 params.m6A_analysis = false
 
@@ -73,7 +74,7 @@ process count_transcripts {
 		path "bambu_out/HJR004_counts_gene.txt"
 		path "bambu_out/HJR004_counts_transcript.txt", emit: transcripts
 		path "bambu_out/HJR004_CPM_transcript.txt"
-		path "bambu_out/HJR004_extended_annotations.gtf"
+		path "bambu_out/HJR004_extended_annotations.gtf", emit: ext_anno
 		path "bambu_out/HJR004_fullLengthCounts_transcript.txt"
 		path "bambu_out/HJR004_uniqueCounts_transcript.txt"
 	script:
@@ -91,6 +92,7 @@ process stage_wise_analysis {
 		val counts
 		val anno
 		val sample_sheet
+		val acronym_list
 	output:
 		path "de_coefficients.csv"
 		path "de_results.csv"
@@ -103,7 +105,7 @@ process stage_wise_analysis {
 		path "dex_isoform_proportions.csv"
 	script:
 	"""
-		diff_splice_stageR.R ${counts} ${anno} ${sample_sheet}
+		diff_splice_stageR.R ${counts} ${anno} ${sample_sheet} ${acronym_list}
 	"""
 }
 workflow {
@@ -137,6 +139,15 @@ workflow {
 		error = "no sample sheet provided"
 	}
 
+	if (params.acronym_list) {
+		acronym_list = file(params.acronym_list, type: "file")
+		if (!acronym_list.exists()) {
+			error = "acronym list does not exist"
+		}
+	} else {
+		error = "no acronym_list provided"
+	}
+
 	if (error) {
 		throw new Exception(error)
 	}
@@ -152,7 +163,7 @@ workflow {
 	}
 
 	count_transcripts(ref_genome, ref_anno, params.ndr, bams)
-	stage_wise_analysis(count_transcripts.out.transcripts, ref_anno, sample_sheet)
+	stage_wise_analysis(count_transcripts.out.transcripts, count_transcripts.out.ext_anno, sample_sheet, acronym_list)
 }
 
 workflow.onComplete {
