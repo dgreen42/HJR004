@@ -62,6 +62,7 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
 		     message(conditionMessage(cond))
 		     return(list(start = NA, 
 				 end = NA, 
+				 parent_transcript = NA,
 				 transcripts = NA,
 				 acronym = NA,
 				 strand = NA))
@@ -74,7 +75,8 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
 			     message("grep successful")
 		     } else {
 			     return(list(start = NA, 
-					 end = NA, 
+					 end = NA,
+					 parent_transcript = NA,
 					 transcripts = NA,
 					 acronym = NA,
 					 strand = NA))
@@ -117,9 +119,9 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
         acro_grep <- tryAcroGrep(gene, acronym_list = acronym_list)
         if (acro_grep != 0) {
             gene_name <- strsplit(acro_grep, ",")[[1]][2]
-        } else {
-            gene_name <- gene
-        }
+	} else {
+		gene_name <- gene
+	}
     }
 
     if (suppress_plot == T) {
@@ -132,15 +134,27 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
         transcripts <- unique(featureFrame$transcriptid)
         par(mai = c(1.02,2,1,0.42))
         xlimit =  c(as.integer(min(featureFrame$start)), as.integer(max(featureFrame$end)))
-        plot(NA,
-             xlim = xlimit,
-             ylim = c(0,length(transcripts)),
-             main = gene_name,
-             xlab = "Location (bp)",
-             ylab = NA,
-             yaxt = "n",
-             bty = "n",
-        )
+	if (is.null(gene_name)) {
+		plot(NA,
+		     xlim = xlimit,
+		     ylim = c(0,length(transcripts)),
+		     main = gene,
+		     xlab = "Location (bp)",
+		     ylab = NA,
+		     yaxt = "n",
+		     bty = "n",
+		)
+	} else {
+		plot(NA,
+		     xlim = xlimit,
+		     ylim = c(0,length(transcripts)),
+		     main = gene_name,
+		     xlab = "Location (bp)",
+		     ylab = NA,
+		     yaxt = "n",
+		     bty = "n",
+		)
+	} 
         axis(side = 2,
              at = 1:length(transcripts),
              labels = transcripts,
@@ -175,26 +189,41 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
         )
         ts <- ""
         for(i in transcripts) {
-            ts <- paste(ts, i)
+	    if (i != gene) {
+		    ts <- paste(ts, i)
+	    }
         }
         return(list(start = xlimit[1], 
                     end = xlimit[2], 
-                    transcripts = ts,
+		    parent_transcript = gene,
+                    alternative_transcripts = trimws(ts),
                     acronym = gene_name,
                     strand = featureFrame$strand[1])) 
     } else if (suppress_plot != T) {
         transcripts <- unique(featureFrame$transcriptid)
         par(mai = c(1.02,2,1,1))
         xlimit =  c(as.integer(min(featureFrame$start)), as.integer(max(featureFrame$end)))
-        plot(NA,
-             xlim = xlimit,
-             ylim = c(0,length(transcripts)),
-             main = gene_name,
-             xlab = "Location (bp)",
-             ylab = NA,
-             yaxt = "n",
-             bty = "n",
-        )
+	if (is.null(gene_name)) {
+		plot(NA,
+		     xlim = xlimit,
+		     ylim = c(0,length(transcripts)),
+		     main = gene_name,
+		     xlab = "Location (bp)",
+		     ylab = NA,
+		     yaxt = "n",
+		     bty = "n",
+		)
+	} else {
+		plot(NA,
+		     xlim = xlimit,
+		     ylim = c(0,length(transcripts)),
+		     main = gene_name,
+		     xlab = "Location (bp)",
+		     ylab = NA,
+		     yaxt = "n",
+		     bty = "n",
+		)
+	}
         axis(side = 2,
              at = 1:length(transcripts),
              labels = transcripts,
@@ -273,11 +302,14 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
         )
         ts <- ""
         for(i in transcripts) {
-            ts <- paste(ts, i)
+	    if (i != gene) {
+		    ts <- paste(ts, i)
+	    }
         }
         return(list(start = xlimit[1],
                     end = xlimit[2],
-                    transcripts = ts,
+		    parent_transcript = gene,
+                    alternative_transcripts = trimws(ts),
                     acronym = gene_name,
                     strand = featureFrame$strand[1]),
                     props = plist
@@ -291,6 +323,7 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
         xlimit =  c(as.integer(min(featureFrame$start)), as.integer(max(featureFrame$end)))
         return(list(start = xlimit[1], 
                     end = xlimit[2], 
+		    parent_transcript = gene,
                     transcripts = ts,
                     acronym = gene_name,
                     strand = featureFrame$strand[1])) 

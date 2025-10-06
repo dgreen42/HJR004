@@ -19,6 +19,7 @@ cts <- read.delim(file_path)
 rownames(cts) <- cts$TXNAME
 cts <- cts[,3:ncol(cts)]
 cols <- colnames(cts)
+
 group <- c()
 n <- c()
 samp <- c()
@@ -32,6 +33,7 @@ for (i in 1:length(cols)) {
         }
     }
 }
+
 allData <- c(samp, n, group)
 sampleData <- data.frame(matrix(allData, ncol = ncol(sample_sheet), nrow(sample_sheet))) 
 colnames(sampleData) <- colnames(sample_sheet)
@@ -56,7 +58,6 @@ write.csv(summary.TestResults(de), file = "de_summary.csv")
 
 # stage wise analysis
 
-alpha <- 0.05
 nGenes <- nrow(dge)
 tableF <- topTableF(fit2, number = nGenes, sort.by = "none")
 pScreen <- tableF$P.Value
@@ -64,11 +65,12 @@ names(pScreen) = rownames(tableF)
 pConf <- sapply(1:3, function(i) topTable(fit2, coef = i, number = nGenes, sort.by = "none")$P.Value)
 dimnames(pConf) <- list(rownames(fit2), c("n-i", "n-m", "i-m"))
 stageRObj <- stageR(pScreen = pScreen, pConfirmation = pConf, pScreenAdjusted = F)
-stageRObj <- stageWiseAdjustment(object = stageRObj, method = "none", alpha = alpha)
+stageRObj <- stageWiseAdjustment(object = stageRObj, method = "none", alpha = 0.05)
+padjde <- getAdjustedPValues(stageRObj, order = T, onlySignificantGenes = T)
 res <- getResults(stageRObj)
 
-write.csv(res, "adjusted_results.csv")
-write.csv(colSums(res), "adjusted_results_summary.csv")
+write.csv(padjde, "de_adjusted_pvalues.csv")
+write.csv(res, "de_adjusted_results.csv")
 
 
 # differential exon expression ----
@@ -99,6 +101,7 @@ dxr <- DEXSeqResults(dxd)
 qvalDxr <- perGeneQValue(dxr)
 # stage wise analysis
 
+
 pConf <- matrix(dxr$pvalue, ncol = 1)
 dimnames(pConf) <- list(c(dxr$featureID), c("transcript"))
 pScreen <- qvalDxr
@@ -116,11 +119,13 @@ stageRTxObj <- stageRTx(pScreen = pScreen,
                         )
 stageRTxObj <- stageWiseAdjustment(object = stageRTxObj, method = "dtu", alpha = 0.05, allowNA = T)
 padj <- getAdjustedPValues(stageRTxObj, order = T, onlySignificantGenes = T)
-#props <- isoformProp2(cts)
-props <- NA
+props <- isoformProp2(cts)
+#props <- NA
 
-altcolnames <- c("start", "end", "transcripts", "acronym", "strand")
-altsplice <- data.frame(matrix(NA, nrow = 1, ncol = 5))
+altcolnames <- c("start", "end", "parent_transcript", "alternative_transcripts", "acronym", "strand")
+print(altcolnames)
+altsplice <- data.frame(matrix(NA, nrow = 1, ncol = 6))
+print(altsplice)
 colnames(altsplice) <- altcolnames
 count <- 0
 

@@ -7,6 +7,7 @@ import java.nio.file.Paths;
 include {methylation_analysis} from "./workflows/methylation_analysis.nf"
 
 params.fastq = null 
+params.bams = null
 params.ref_annotation = null
 params.ref_genome = null
 params.sample_sheet = null
@@ -97,8 +98,8 @@ process stage_wise_analysis {
 		path "de_coefficients.csv"
 		path "de_results.csv"
 		path "de_summary.csv"
-		path "adjusted_results.csv"
-		path "adjusted_results_summary.csv"
+		path "de_adjusted_results.csv"
+		path "de_adjusted_pvalues.csv"
 		path "taxa_to_gene_distribution.csv"
 		path "dex_adjusted_pval.csv"
 		path "dex_altsplice.csv"
@@ -153,10 +154,15 @@ workflow {
 	}
 
 	check_tools()
-	index_ref(ref_genome)
-	fq_ch = channel.fromPath(params.fastq + "*.fastq.gz")
-	align_and_map(fq_ch, index_ref.out.index, ref_genome)
-	bams = align_and_map.out.bampath.collect(x -> file(x, type: "file"))
+
+	if (!params.bams) {
+		index_ref(ref_genome)
+		fq_ch = channel.fromPath(params.fastq + "*.fastq.gz")
+		align_and_map(fq_ch, index_ref.out.index, ref_genome)
+		bams = align_and_map.out.bampath.collect(x -> file(x, type: "file"))
+	} else {
+		bams = file(params.bams + "*.bam")
+	}
 	
 	if (params.m6A_analysis) {
 		me = methylation_analysis(fastq, bams, ref_genome)
@@ -170,6 +176,6 @@ workflow.onComplete {
 	println("All done!")
 }
 workflow.onError {
-	println("Well shit..." + error)
+	println("Well shit... something went wrong")
 }
 
