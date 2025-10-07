@@ -489,18 +489,60 @@ isoformProp2 <- function(counts) {
     f <- 0
     s <- 0
     len <- nrow(counts)
+
     props <- data.frame(TXNAME = NA, GENEID = NA, genetotal = NA, isototal = NA, prop = NA)
+    nodprop <- data.frame(TXNAME = NA, GENEID = NA, genetotal = NA, isototal = NA, prop = NA)
+    irtprop <- data.frame(TXNAME = NA, GENEID = NA, genetotal = NA, isototal = NA, prop = NA)
+    mrtprop <- data.frame(TXNAME = NA, GENEID = NA, genetotal = NA, isototal = NA, prop = NA)
+
     genes <- unique(counts$GENEID)
     count <- 1
+
+    nod <- sampleData[sampleData$group == "nod"]
+    irt <- sampleData[sampleData$group == "irt"]
+    mrt <- sampleData[sampleData$group == "mrt"]
+
+    nodidx <- getColIdx(cts, nod)
+    irtidx <- getColIdx(cts, irt)
+    mrtidx <- getColIdx(cts, mrt)
+
+    nodsub <- createSubsetCts(cts, nodidx)
+    irtsub <- createSubsetCts(cts, irtidx)
+    mrtsub <- createSubsetCts(cts, mrtidx)
+
     for(gene in genes) {
         set <- counts[counts$GENEID == gene,]
+        nodset <- nodsub[nodsub$GENEID == gene,]
+        irtset <- irtsub[irtsub$GENEID == gene,]
+        mrtset <- mrtsub[mrtsub$GENEID == gene,]
         genetotal <- sum(set[,3:ncol(set)])
+        nodgenetotal <- sum(nodset[,3:ncol(nodset)])
+        irtgenetotal <- sum(irtset[,3:ncol(irtset)])
+        mrtgenetotal <- sum(mrtset[,3:ncol(mrtset)])
         for(i in 1:nrow(set)) {
             props[count,] <- c(set$TXNAME[i],
                                set$GENEID[i],
                                genetotal,
                                sum(set[i,3:ncol(set)]),
                                sum(set[i,3:ncol(set)])/genetotal
+            )
+            nodprop[count,] <- c(nodset$TXNAME[i],
+                               nodset$GENEID[i],
+                               nodgenetotal,
+                               sum(nodset[i,3:ncol(nodset)]),
+                               sum(nodset[i,3:ncol(nodset)])/nodgenetotal
+            )
+            irtprop[count,] <- c(irtset$TXNAME[i],
+                               irtset$GENEID[i],
+                               irtgenetotal,
+                               sum(irtset[i,3:ncol(irtset)]),
+                               sum(irtset[i,3:ncol(irtset)])/irtgenetotal
+            )
+            mrtprop[count,] <- c(mrtset$TXNAME[i],
+                               mrtset$GENEID[i],
+                               mrtgenetotal,
+                               sum(mrtset[i,3:ncol(mrtset)]),
+                               sum(mrtset[i,3:ncol(mrtset)])/mrtgenetotal
             )
             count <- count + 1
             if (count > len*0.25 && count < len*0.251 && t == 0) {
@@ -515,7 +557,11 @@ isoformProp2 <- function(counts) {
             }
         }
     }
-    return(props)
+
+    write.csv(props, "dex_isoform_proportions.csv")
+    write.csv(nodprop, "dex_isoform_proportions_nod.csv")
+    write.csv(irtprop, "dex_isoform_proportions_irt.csv")
+    write.csv(mrtprop, "dex_isoform_proportions_mrt.csv")
 }
 
 isoformProp3 <- function(counts) {
@@ -815,6 +861,33 @@ count_udns <- function(results) {
     return(resultsFrame)
 }
 
+getColIdx <- function(cts, group) {
+    idx <- NULL
+    count <- 0
+    countidx <- 0
+    for(i in colnames(cts)) {
+        count <- count + 1
+        for(j in rownames(group)) {
+            if (i == j) {
+                countidx <- countidx + 1
+                idx[countidx] <- count
+            }
+        }
+    }
+    names(idx) <- rownames(group)
+    return(idx)
+}
 
+createSubsetCts <- function(cts, subset) {
+    subdf <- data.frame(matrix(NA, ncol = length(subset), nrow = nrow(cts)))
+    colnames(subdf) <- names(subset)
+    count <- 0
+    for(i in subset) {
+        count <- count + 1
+        subdf[,count] <- cts[,i]
+    }
+    
+    return(subdf)
+}
 
 

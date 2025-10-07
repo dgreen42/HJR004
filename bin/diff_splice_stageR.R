@@ -36,6 +36,7 @@ for (i in 1:length(cols)) {
 
 allData <- c(samp, n, group)
 sampleData <- data.frame(matrix(allData, ncol = ncol(sample_sheet), nrow(sample_sheet))) 
+# keep this for later use since sampleData gets changed in the stage wise analysis of the alternative transcripts
 colnames(sampleData) <- colnames(sample_sheet)
 dge <- DGEList(counts = cts, group = group)
 expDesign <- model.matrix(~0+group, data = dge$samples)
@@ -119,8 +120,9 @@ stageRTxObj <- stageRTx(pScreen = pScreen,
                         )
 stageRTxObj <- stageWiseAdjustment(object = stageRTxObj, method = "dtu", alpha = 0.05, allowNA = T)
 padj <- getAdjustedPValues(stageRTxObj, order = T, onlySignificantGenes = T)
-props <- isoformProp2(cts)
-#props <- NA
+write.csv(padj, "dex_adjusted_pval.csv")
+
+isoformProp2(cts)
 
 altcolnames <- c("start", "end", "parent_transcript", "alternative_transcripts", "acronym", "strand")
 print(altcolnames)
@@ -129,7 +131,6 @@ print(altsplice)
 colnames(altsplice) <- altcolnames
 count <- 0
 
-write.csv(padj, "dex_adjusted_pval.csv")
 
 for(gene in unique(padj$geneID)) {
     count <- count + 1
@@ -137,5 +138,5 @@ for(gene in unique(padj$geneID)) {
     print(altsplice[count,])
 }
 
-write.csv(props, "dex_isoform_proportions.csv")
 write.csv(altsplice, "dex_altsplice.csv")
+

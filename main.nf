@@ -104,6 +104,9 @@ process stage_wise_analysis {
 		path "dex_adjusted_pval.csv"
 		path "dex_altsplice.csv"
 		path "dex_isoform_proportions.csv"
+		path "dex_isoform_proportions_nod.csv"
+		path "dex_isoform_proportions_irt.csv"
+		path "dex_isoform_proportions_mrt.csv"
 	script:
 	"""
 		diff_splice_stageR.R ${counts} ${anno} ${sample_sheet} ${acronym_list}
