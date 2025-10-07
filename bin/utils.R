@@ -509,7 +509,6 @@ isoformProp2 <- function(counts) {
     nodsub <- createSubsetCts(cts, nodidx)
     irtsub <- createSubsetCts(cts, irtidx)
     mrtsub <- createSubsetCts(cts, mrtidx)
-
     for(gene in genes) {
         set <- counts[counts$GENEID == gene,]
         nodset <- nodsub[nodsub$GENEID == gene,]
@@ -526,24 +525,27 @@ isoformProp2 <- function(counts) {
                                sum(set[i,3:ncol(set)]),
                                sum(set[i,3:ncol(set)])/genetotal
             )
-            nodprop[count,] <- c(nodset$TXNAME[i],
-                               nodset$GENEID[i],
+            nodprop[count,] <- c(set$TXNAME[i],
+                               set$GENEID[i],
                                nodgenetotal,
-                               sum(nodset[i,3:ncol(nodset)]),
-                               sum(nodset[i,3:ncol(nodset)])/nodgenetotal
+                               sum(nodset[i,ncol(nodset)]),
+                               sum(nodset[i,ncol(nodset)])/nodgenetotal
             )
-            irtprop[count,] <- c(irtset$TXNAME[i],
-                               irtset$GENEID[i],
+	    print("maybe here")
+            irtprop[count,] <- c(set$TXNAME[i],
+                               set$GENEID[i],
                                irtgenetotal,
-                               sum(irtset[i,3:ncol(irtset)]),
-                               sum(irtset[i,3:ncol(irtset)])/irtgenetotal
+                               sum(irtset[i,ncol(irtset)]),
+                               sum(irtset[i,ncol(irtset)])/irtgenetotal
             )
-            mrtprop[count,] <- c(mrtset$TXNAME[i],
-                               mrtset$GENEID[i],
+	    print("might be here")
+            mrtprop[count,] <- c(set$TXNAME[i],
+                               set$GENEID[i],
                                mrtgenetotal,
-                               sum(mrtset[i,3:ncol(mrtset)]),
-                               sum(mrtset[i,3:ncol(mrtset)])/mrtgenetotal
+                               sum(mrtset[i,ncol(mrtset)]),
+                               sum(mrtset[i,ncol(mrtset)])/mrtgenetotal
             )
+	    print("is it here")
             count <- count + 1
             if (count > len*0.25 && count < len*0.251 && t == 0) {
                 print("--- 25% complete ---")
