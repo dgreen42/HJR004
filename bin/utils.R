@@ -262,7 +262,7 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
         for (i in transcripts) {
            for (j in 1:nrow(plist)) {
                if (i == plist$TXNAME[j]) {
-                   props[count] <- round(as.double(plist$prop[j]), digit = 2)
+                   props[count] <- round(as.double(plist$prop[j]), digit = 4)
                    print(props[count])
                    count <- count + 1
                } else {
@@ -272,7 +272,7 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
         }
         if (length(props) > 4) {
             if (length(props) >= 6) {
-                font.size = 0.6
+                font.size = 0.5
             } else {
                 font.size = 0.8
             }
