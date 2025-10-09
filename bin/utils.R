@@ -509,6 +509,11 @@ isoformProp2 <- function(counts) {
     nodsub <- createSubsetCts(cts, nodidx)
     irtsub <- createSubsetCts(cts, irtidx)
     mrtsub <- createSubsetCts(cts, mrtidx)
+
+    head(nodsub)
+    head(irtsub)
+    head(mrtsub)
+
     for(gene in genes) {
         set <- counts[counts$GENEID == gene,]
         nodset <- nodsub[nodsub$GENEID == gene,]
@@ -518,6 +523,7 @@ isoformProp2 <- function(counts) {
         nodgenetotal <- sum(nodset[,3:ncol(nodset)])
         irtgenetotal <- sum(irtset[,3:ncol(irtset)])
         mrtgenetotal <- sum(mrtset[,3:ncol(mrtset)])
+
         for(i in 1:nrow(set)) {
             props[count,] <- c(set$TXNAME[i],
                                set$GENEID[i],
@@ -525,27 +531,28 @@ isoformProp2 <- function(counts) {
                                sum(set[i,3:ncol(set)]),
                                sum(set[i,3:ncol(set)])/genetotal
             )
-            nodprop[count,] <- c(set$TXNAME[i],
-                               set$GENEID[i],
+
+            nodprop[count,] <- c(nodset$TXNAME[i],
+                               nodset$GENEID[i],
                                nodgenetotal,
-                               sum(nodset[i,ncol(nodset)]),
-                               sum(nodset[i,ncol(nodset)])/nodgenetotal
+                               sum(nodset[i,3:ncol(nodset)]),
+                               sum(nodset[i,3:ncol(nodset)])/nodgenetotal
             )
-	    print("maybe here")
-            irtprop[count,] <- c(set$TXNAME[i],
-                               set$GENEID[i],
+
+            irtprop[count,] <- c(irtset$TXNAME[i],
+                               irtset$GENEID[i],
                                irtgenetotal,
-                               sum(irtset[i,ncol(irtset)]),
-                               sum(irtset[i,ncol(irtset)])/irtgenetotal
+                               sum(irtset[i,3:ncol(irtset)]),
+                               sum(irtset[i,3:ncol(irtset)])/irtgenetotal
             )
-	    print("might be here")
-            mrtprop[count,] <- c(set$TXNAME[i],
-                               set$GENEID[i],
+
+            mrtprop[count,] <- c(mrtset$TXNAME[i],
+                               mrtset$GENEID[i],
                                mrtgenetotal,
-                               sum(mrtset[i,ncol(mrtset)]),
-                               sum(mrtset[i,ncol(mrtset)])/mrtgenetotal
+                               sum(mrtset[i,3:ncol(mrtset)]),
+                               sum(mrtset[i,3:ncol(mrtset)])/mrtgenetotal
             )
-	    print("is it here")
+
             count <- count + 1
             if (count > len*0.25 && count < len*0.251 && t == 0) {
                 print("--- 25% complete ---")
@@ -566,36 +573,37 @@ isoformProp2 <- function(counts) {
     write.csv(mrtprop, "dex_isoform_proportions_mrt.csv")
 }
 
-isoformProp3 <- function(counts) {
-    len <- nrow(counts)
-    props <- data.frame(TXNAME = NA, GENEID = NA, genetotal = NA, isototal = NA, prop = NA)
-    genes <- unique(counts$GENEID)
-    count <- 1
+isoformProp3 <- function(counts, padj) {
     cores <- parallel::detectCores() - 1
     cluster <- parallel::makeCluster(
         cores,
-        type = "PSOCK"
+	type = "PSOCK"
     )
     doParallel::registerDoParallel(cl = cluster)
     print(foreach::getDoParRegistered())
     print(foreach::getDoParWorkers())
-    foreach(
+
+    genes <- unique(padj$geneID)
+    isoprops <- foreach(
         gene = genes,
-        .combine = 'rbind'
-    ) %dopar% {
-        set <- counts[counts$GENEID == gene,]
+        .combine = "rbind"
+    ) %do% {
+        count <- 1
+        set <- cts[gsub(" ", "", cts$GENEID) == gene,]
         genetotal <- sum(set[,3:ncol(set)])
+        prop <- data.frame(TXNAME = NA, GENEID = NA, genetotal = NA, isototal = NA, prop = NA)
         for(i in 1:nrow(set)) {
-            props[count,] <- c(set$TXNAME[i],
-                               set$GENEID[i],
-                               genetotal,
-                               sum(set[i,3:ncol(set)]),
-                               sum(set[i,3:ncol(set)])/genetotal
+            prop[count,] <- c(set$TXNAME[i],
+                              set$GENEID[i],
+                              genetotal,
+                              sum(set[i,3:ncol(set)]),
+                              sum(set[i,3:ncol(set)])/genetotal
             )
             count <- count + 1
         }
+        prop
     }
-    return(props)
+    return(isoprops)
 }
 
 plotPropComp <- function(propTable, gene) {
@@ -881,9 +889,13 @@ getColIdx <- function(cts, group) {
 }
 
 createSubsetCts <- function(cts, subset) {
-    subdf <- data.frame(matrix(NA, ncol = length(subset), nrow = nrow(cts)))
-    colnames(subdf) <- names(subset)
-    count <- 0
+    subdf <- data.frame(matrix(NA, ncol = length(subset) + 2, nrow = nrow(cts)))
+    cnames <-  c("TXNAME", "GENEID", names(subset))
+    colnames(subdf) <- cnames
+    subdf$TXNAME <- cts$TXNAME
+    subdf$GENEID <- cts$GENEID
+    #start at 2 since the first two coluns will be txname and geneid
+    count <- 2
     for(i in subset) {
         count <- count + 1
         subdf[,count] <- cts[,i]

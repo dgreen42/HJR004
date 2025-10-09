@@ -107,6 +107,8 @@ process stage_wise_analysis {
 		path "dex_isoform_proportions_nod.csv"
 		path "dex_isoform_proportions_irt.csv"
 		path "dex_isoform_proportions_mrt.csv"
+		path "de_results_venn_diagram.png"
+		path "de_volcano.png"
 	script:
 	"""
 		diff_splice_stageR.R ${counts} ${anno} ${sample_sheet} ${acronym_list}

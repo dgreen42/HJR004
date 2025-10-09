@@ -52,10 +52,20 @@ contrast.matrix <- makeContrasts(nod-irt, nod-mrt, irt-mrt, levels = expDesign)
 fit2 <- contrasts.fit(fit, contrast.matrix)
 fit2 <- eBayes(fit2)
 de <- decideTests(fit2)
+ven <- vennCounts(de)
+png("de_results_venn_diagram.png")
+vennDiagram(ven)
+title("Summary of Differentially Expressed Genes")
+dev.off()
+png("de_volcano.png")
+volcanoplot(fit2, coef = 2)
+title("Log2 Fold Change vs. -log10 Pvalues")
+dev.off()
 
-write.csv(fit2$coefficients, file = "de_coefficients.csv")
-write.csv(de, file = "de_results.csv")
-write.csv(summary.TestResults(de), file = "de_summary.csv")
+write.csv(fit2$coefficients, file = "de_coefficients.csv", row.names = F)
+write.csv(de, file = "de_results.csv", row.names = F)
+write.csv(summary.TestResults(de), file = "de_summary.csv", row.names = F)
+
 
 # stage wise analysis
 
@@ -70,8 +80,8 @@ stageRObj <- stageWiseAdjustment(object = stageRObj, method = "none", alpha = 0.
 padjde <- getAdjustedPValues(stageRObj, order = T, onlySignificantGenes = T)
 res <- getResults(stageRObj)
 
-write.csv(padjde, "de_adjusted_pvalues.csv")
-write.csv(res, "de_adjusted_results.csv")
+write.csv(padjde, "de_adjusted_pvalues.csv", row.names = F)
+write.csv(res, "de_adjusted_results.csv", row.names = F)
 
 
 # differential exon expression ----
@@ -84,7 +94,7 @@ tx2gene <- cts[,1:2]
 colnames(tx2gene) <- c("transcript", "gene")
 tcts <- cts[,3:ncol(cts)]
 tx2dist <- table(table(tx2gene$gene))
-write.csv(tx2dist, "taxa_to_gene_distribution.csv")
+write.csv(tx2dist, "taxa_to_gene_distribution.csv", row.names = F)
 rownames(sampleData) <- sampleData[,1]
 sampleData <- sampleData[,2:3]
 # this is the same as cts$GENEID
@@ -120,9 +130,28 @@ stageRTxObj <- stageRTx(pScreen = pScreen,
                         )
 stageRTxObj <- stageWiseAdjustment(object = stageRTxObj, method = "dtu", alpha = 0.05, allowNA = T)
 padj <- getAdjustedPValues(stageRTxObj, order = T, onlySignificantGenes = T)
-write.csv(padj, "dex_adjusted_pval.csv")
+write.csv(padj, "dex_adjusted_pval.csv", row.names = F)
 
-isoformProp2(cts)
+nod <- sampleData[sampleData$group == "nod"]
+irt <- sampleData[sampleData$group == "irt"]
+mrt <- sampleData[sampleData$group == "mrt"]
+
+nodidx <- getColIdx(cts, nod)
+irtidx <- getColIdx(cts, irt)
+mrtidx <- getColIdx(cts, mrt)
+
+nodsub <- createSubsetCts(cts, nodidx)
+irtsub <- createSubsetCts(cts, irtidx)
+mrtsub <- createSubsetCts(cts, mrtidx)
+
+isoprop <- isoformProp3(cts, padj)
+write.csv(isoprop, "dex_isoform_proportions.csv", row.names = F)
+isopropnod <- isoformProp3(nodsub, padj)
+write.csv(isopropnod, "dex_isoform_proportions_nod.csv", row.names = F)
+isopropirt <- isoformProp3(irtsub, padj)
+write.csv(isopropirt, "dex_isoform_proportions_irt.csv", row.names = F)
+isopropmrt <- isoformProp3(mrtsub, padj)
+write.csv(isopropmrt, "dex_isoform_proportions_mrt.csv", row.names = F)
 
 altcolnames <- c("start", "end", "parent_transcript", "alternative_transcripts", "acronym", "strand")
 print(altcolnames)
@@ -131,12 +160,11 @@ print(altsplice)
 colnames(altsplice) <- altcolnames
 count <- 0
 
-
 for(gene in unique(padj$geneID)) {
     count <- count + 1
     altsplice[count,] <- plotIsoform(strsplit(gene, ";")[[1]][2], annotation = args[2] , exon_marker = F, acronym_list = args[4], suppress_plot = T)
     print(altsplice[count,])
 }
 
-write.csv(altsplice, "dex_altsplice.csv")
+write.csv(altsplice, "dex_altsplice.csv", row.names = F)
 
