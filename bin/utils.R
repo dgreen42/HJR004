@@ -58,32 +58,32 @@ tryAcroGrep <- function(gene, acronym_list) {
 plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_list = NULL, suppress_plot = F) {
     par(xpd = F)
     tryCatch(grepd <- system2("grep", args = paste(gene, annotation), stdout = T),
-	     error = function(cond) {
-		     message(conditionMessage(cond))
-		     return(list(start = NA, 
-				 end = NA, 
-				 parent_transcript = NA,
-				 transcripts = NA,
-				 acronym = NA,
-				 strand = NA))
-	     },
-	     warning = function(cond) {
-		     message(conditionMessage(cond))
-	     },
-	     finally = {
-		     if (exists("grepd")) {
-			     message("grep successful")
-		     } else {
-			     return(list(start = NA, 
-					 end = NA,
-					 parent_transcript = NA,
-					 transcripts = NA,
-					 acronym = NA,
-					 strand = NA))
-		     }
-	     }
+             error = function(cond) {
+                 message(conditionMessage(cond))
+                 return(list(start = NA, 
+                             end = NA, 
+                             parent_transcript = NA,
+                             transcripts = NA,
+                             acronym = NA,
+                             strand = NA))
+             },
+             warning = function(cond) {
+                 message(conditionMessage(cond))
+             },
+             finally = {
+                 if (exists("grepd")) {
+                     message("grep successful")
+                 } else {
+                     return(list(start = NA, 
+                                 end = NA,
+                                 parent_transcript = NA,
+                                 transcripts = NA,
+                                 acronym = NA,
+                                 strand = NA))
+                 }
+             }
     )
-
+    
     rawFeatures <- strsplit(grepd, split = "\t")
     featureFrame <- data.frame(matrix(NA, ncol = length(rawFeatures[[1]]), nrow = length(rawFeatures)))
     colnames(featureFrame) <- c("seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute")
@@ -119,42 +119,42 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
         acro_grep <- tryAcroGrep(gene, acronym_list = acronym_list)
         if (acro_grep != 0) {
             gene_name <- strsplit(acro_grep, ",")[[1]][2]
-	} else {
-		gene_name <- gene
-	}
+        } else {
+            gene_name <- gene
+        }
     }
-
+    
     if (suppress_plot == T) {
-	    prop <- NULL
+        prop <- NULL
     } else {
-	    prop <- prop
+        prop <- prop
     }
     
     if (is.null(prop) & suppress_plot != T) {
         transcripts <- unique(featureFrame$transcriptid)
         par(mai = c(1.02,2,1,0.42))
         xlimit =  c(as.integer(min(featureFrame$start)), as.integer(max(featureFrame$end)))
-	if (is.null(gene_name)) {
-		plot(NA,
-		     xlim = xlimit,
-		     ylim = c(0,length(transcripts)),
-		     main = gene,
-		     xlab = "Location (bp)",
-		     ylab = NA,
-		     yaxt = "n",
-		     bty = "n",
-		)
-	} else {
-		plot(NA,
-		     xlim = xlimit,
-		     ylim = c(0,length(transcripts)),
-		     main = gene_name,
-		     xlab = "Location (bp)",
-		     ylab = NA,
-		     yaxt = "n",
-		     bty = "n",
-		)
-	} 
+        if (is.null(gene_name)) {
+            plot(NA,
+                 xlim = xlimit,
+                 ylim = c(0,length(transcripts)),
+                 main = gene,
+                 xlab = "Location (bp)",
+                 ylab = NA,
+                 yaxt = "n",
+                 bty = "n",
+            )
+        } else {
+            plot(NA,
+                 xlim = xlimit,
+                 ylim = c(0,length(transcripts)),
+                 main = gene_name,
+                 xlab = "Location (bp)",
+                 ylab = NA,
+                 yaxt = "n",
+                 bty = "n",
+            )
+        } 
         axis(side = 2,
              at = 1:length(transcripts),
              labels = transcripts,
@@ -189,13 +189,13 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
         )
         ts <- ""
         for(i in transcripts) {
-	    if (i != gene) {
-		    ts <- paste(ts, i)
-	    }
+            if (i != gene) {
+                ts <- paste(ts, i)
+            }
         }
         return(list(start = xlimit[1], 
                     end = xlimit[2], 
-		    parent_transcript = gene,
+                    parent_transcript = gene,
                     alternative_transcripts = trimws(ts),
                     acronym = gene_name,
                     strand = featureFrame$strand[1])) 
@@ -203,27 +203,27 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
         transcripts <- unique(featureFrame$transcriptid)
         par(mai = c(1.02,2,1,1))
         xlimit =  c(as.integer(min(featureFrame$start)), as.integer(max(featureFrame$end)))
-	if (is.null(gene_name)) {
-		plot(NA,
-		     xlim = xlimit,
-		     ylim = c(0,length(transcripts)),
-		     main = gene_name,
-		     xlab = "Location (bp)",
-		     ylab = NA,
-		     yaxt = "n",
-		     bty = "n",
-		)
-	} else {
-		plot(NA,
-		     xlim = xlimit,
-		     ylim = c(0,length(transcripts)),
-		     main = gene_name,
-		     xlab = "Location (bp)",
-		     ylab = NA,
-		     yaxt = "n",
-		     bty = "n",
-		)
-	}
+        if (is.null(gene_name)) {
+            plot(NA,
+                 xlim = xlimit,
+                 ylim = c(0,length(transcripts)),
+                 main = gene_name,
+                 xlab = "Location (bp)",
+                 ylab = NA,
+                 yaxt = "n",
+                 bty = "n",
+            )
+        } else {
+            plot(NA,
+                 xlim = xlimit,
+                 ylim = c(0,length(transcripts)),
+                 main = gene_name,
+                 xlab = "Location (bp)",
+                 ylab = NA,
+                 yaxt = "n",
+                 bty = "n",
+            )
+        }
         axis(side = 2,
              at = 1:length(transcripts),
              labels = transcripts,
@@ -256,23 +256,22 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
             count <- count + 1
         }
         print(plist)
-        print(transcripts)
         count <- 1
         #fix ordering of props
         for (i in transcripts) {
-           for (j in 1:nrow(plist)) {
-               if (i == plist$TXNAME[j]) {
-                   props[count] <- round(as.double(plist$prop[j]), digit = 4)
-                   print(props[count])
-                   count <- count + 1
-               } else {
-                   next
-               }
-           }
+            for (j in 1:nrow(plist)) {
+                if (i == plist$TXNAME[j]) {
+                    props[count] <- round(as.double(plist$prop[j]), digit = 4)
+                    print(props[count])
+                    count <- count + 1
+                } else {
+                    next
+                }
+            }
         }
         if (length(props) > 4) {
             if (length(props) >= 6) {
-                font.size = 0.5
+                font.size = 0.6
             } else {
                 font.size = 0.8
             }
@@ -282,11 +281,12 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
         axis(side = 4,
              at = 1:length(propidx),
              labels = props,
-             cex.axis = font.size
+             cex.axis = font.size,
+             las = 1
         )
-        mtext("Isoform Proportion (all)",
+        mtext("Isoform Proportion",
               side = 3,
-              adj = 1.45,
+              adj = 1.3,
               padj = -1.2
         )
         mtext("Isoform",
@@ -302,17 +302,18 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
         )
         ts <- ""
         for(i in transcripts) {
-	    if (i != gene) {
-		    ts <- paste(ts, i)
-	    }
+            if (i != gene) {
+                ts <- paste(ts, i)
+            }
         }
         return(list(start = xlimit[1],
                     end = xlimit[2],
-		    parent_transcript = gene,
+                    parent_transcript = gene,
                     alternative_transcripts = trimws(ts),
                     acronym = gene_name,
-                    strand = featureFrame$strand[1]),
+                    strand = featureFrame$strand[1],
                     props = plist
+                    )
         )
     } else { 
         transcripts <- unique(featureFrame$transcriptid)
@@ -323,7 +324,7 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
         xlimit =  c(as.integer(min(featureFrame$start)), as.integer(max(featureFrame$end)))
         return(list(start = xlimit[1], 
                     end = xlimit[2], 
-		    parent_transcript = gene,
+                    parent_transcript = gene,
                     transcripts = ts,
                     acronym = gene_name,
                     strand = featureFrame$strand[1])) 
@@ -589,7 +590,7 @@ isoformProp3 <- function(counts, padj) {
         .combine = "rbind"
     ) %do% {
         count <- 1
-        set <- cts[gsub(" ", "", cts$GENEID) == gene,]
+        set <- counts[gsub(" ", "", counts$GENEID) == gene,]
         genetotal <- sum(set[,3:ncol(set)])
         prop <- data.frame(TXNAME = NA, GENEID = NA, genetotal = NA, isototal = NA, prop = NA)
         for(i in 1:nrow(set)) {
@@ -715,7 +716,7 @@ plotHeatmapIso <- function(propTable, gene, color) {
         xaxisat <- 1:ncol(propMat) - 0.5
         yaxisat <- 1:nrow(propMat) - 0.5
         axis(1, at = xaxisat, labels = colnames(propMat), padj = -2, tick = F)
-        axis(2, at = yaxisat, labels = rownames(propMat), tick = F, las = 2)
+        axis(2, at = yaxisat, labels = rownames(propMat), hadj = 0.85, tick = F, las = 2)
         propMat100 <- round(propMat * 100, digit = 0) + 1
         colors <- colorRampPalette(color)(max(propMat100))
         for (i in divx) {
@@ -904,4 +905,9 @@ createSubsetCts <- function(cts, subset) {
     return(subdf)
 }
 
-
+propsAsNumeric <- function(props) {
+    for(i in 3:ncol(props)) {
+        props[,i] <- as.numeric(props[,i])
+    }
+    return(props)
+}
