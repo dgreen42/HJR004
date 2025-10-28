@@ -271,9 +271,9 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
         }
         if (length(props) > 4) {
             if (length(props) >= 6) {
-                font.size = 0.6
-            } else {
                 font.size = 0.8
+            } else {
+                font.size = 1
             }
         } else {
             font.size = 1
@@ -286,13 +286,13 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
         )
         mtext("Isoform Proportion",
               side = 3,
-              adj = 1.3,
+              adj = 1.2,
               padj = -1.2
         )
         mtext("Isoform",
               side = 3,
               padj = -1.2, 
-              adj = -0.3,
+              adj = -0.2,
               
         )
         mtext(paste("Strand:", featureFrame$strand[1]),
@@ -910,4 +910,230 @@ propsAsNumeric <- function(props) {
         props[,i] <- as.numeric(props[,i])
     }
     return(props)
+}
+
+copyDFscructure <- function(df, all = T) {
+    if (all == T) {
+        structure <- data.frame(matrix(NA, nrow = nrow(df), ncol = ncol(df)))
+    } else if(all == F) {
+        structure <- data.frame(matrix(NA, nrow = 1, ncol = ncol(df)))
+    } else {
+        print("Argument for 'all' must be TRUE or FALSE")
+    }
+    colnames(structure) <- colnames(df)
+    return(structure)
+}
+
+filterPScreen <- function(de, screen) {
+    screened <- copyDFscructure(de, all = F)
+    colnames(screened) <- colnames(de)
+    count <- 1
+    for(i in 1:nrow(screen)) {
+        if(screen$padjScreen[i] != 0) {
+            screened[count,] <- de[i,]
+            count <- count + 1
+        }
+    }
+    return(screened)
+}
+
+plotTable <- function(dataframe) {
+    if (!is.data.frame(dataframe)) {
+        stop("must provide a data.frame")
+    } else {
+        df <- matrix(0, nrow = nrow(dataframe), ncol = ncol(dataframe))
+        for (i in 1:nrow(dataframe)) {
+            for (j in 1:ncol(dataframe)) {
+                df[i,j] <- as.numeric(dataframe[i,j])
+            }
+        }
+        rownames(df) <- rownames(dataframe)
+        colnames(df) <- colnames(dataframe)
+        divx <- seq(1, ncol(df))
+        divy <- seq(1, nrow(df))
+        xlimit = c(0, ncol(df))
+        ylimit = c(0, nrow(df))
+        par(xpd = T, mai = c(0.5, 2, 1, 1))
+        plot(NA, xlim = xlimit, ylim = ylimit,  bty = "n", xaxt = "n", yaxt = "n",
+             xlab = NA, ylab = NA)
+        xaxisat <- 1:ncol(df) - 0.5
+        yaxisat <- 1:nrow(df) - 0.5
+        axis(1, at = xaxisat, labels = colnames(df), padj = -2, tick = F)
+        axis(2, at = yaxisat, labels = rownames(df), hadj = 0.85, tick = F, las = 2)
+        for(i in divx) {
+            for(j in divy) {
+                polygon(
+                    x = c(i - 1, i, i, i - 1),
+                    y = c(j - 1, j - 1, j, j),
+                    text(i - 0.5, j - 0.5, df[j,i])
+                )
+            }
+        }
+    }
+}
+
+getDEacro <- function(dets, counts, acrotable) {
+    t <- copyDFscructure(acrotable, all = F)
+    count <- 1
+    for(i in 1:nrow(dets)) {
+        gene <- trimws(strsplit(counts$GENEID[counts$TXNAME == rownames(dets)[i]], ";")[[1]][2])
+        if(is.na(gene)) {
+            next
+        } else {
+            info <- acrotable[acrotable[,1] == gene,]
+            if(nrow(info) != 0) {
+                t[count,] <- info
+                count <- count + 1
+            }
+        }
+    }
+    return(t)
+}
+
+findGenes <- function(table, pattern) {
+    df <- copyDFscructure(table, all = F)
+    count <- 1
+    for(i in 1:nrow(table)) {
+        grp <- grepl(pattern, table$ACRONYM[i], ignore.case = T)
+        if(grp) {
+            df[count,] <- table[i,]
+            count <- count + 1
+        } else {
+            next
+        }
+    }
+    return(df)
+}
+
+plotIsoformLFC <- function(props1, props2, contrast1, contrast2, lfc, gene, acrotable) {
+    subset1 <- props1[props1$GENEID == gene,]
+    subset2 <- props2[props2$GENEID == gene,]
+    
+    lfcsubset1 <- copyDFscructure(lfc, all = F)
+    lfcsubset2 <- copyDFscructure(lfc, all = F)
+    
+    propsubset1 <- copyDFscructure(subset1, all = F)
+    propsubset2 <- copyDFscructure(subset2, all = F)
+    
+    count <- 1
+    
+    for(i in 1:nrow(subset1)) {
+        for(j in 1:nrow(lfc)) {
+            if(subset1$TXNAME[i] == lfc$TXNAME[j]) {
+                lfcsubset1[count,] <- lfc[j,]
+                propsubset1[count,] <- subset1[i,]
+                
+                lfcsubset2[count,] <- lfc[j,]
+                propsubset2[count,] <- subset2[i,]
+                
+                count <- count + 1
+            }
+        }
+    }
+    
+    lfcsubcont1 <- data.frame(TXNAME = lfcsubset1$TXNAME, CONTRAST = eval(parse(text = paste("lfcsubset1$", contrast1, sep = ""))))
+    lfcsubcont2 <- data.frame(TXNAME = lfcsubset2$TXNAME, CONTRAST = eval(parse(text = paste("lfcsubset2$", contrast2, sep = ""))))
+    
+    par(mai = c(2,0.5,1,2.5), font = 2, xpd = F)
+    plot(NA, xlim = c(0,1), ylim = c(1, nrow(lfcsubcont1) + 2),
+         xlab = "Isoform Proportion", ylab = NA, yaxt = "n", bty = "n")
+    for(i in 1:nrow(lfcsubcont1)) {
+        x <- propsubset1$prop[i]
+        x2 <- propsubset2$prop[i]
+        y <- i + 1
+        cont1 <- lfcsubcont1$CONTRAST[i]
+        cont2 <- lfcsubcont2$CONTRAST[i]
+        lines(c(x, x), c(y, 1), lty = 2)
+        lines(c(x, 1), c(y, y), lty = 2)
+        lines(c(x2, x2), c(y, 1), lty = 2)
+        lines(c(x2, 1), c(y, y), lty = 2)
+        if(cont1 > 0) {
+            lines(c(x, x), c(y, y + cont1 / 2) , lwd = 3, col = "red")
+        } else {
+            lines(c(x, x), c(y, y + cont1 / 2) , lwd = 3, col  = "blue")
+        }
+        if(cont2 > 0) {
+            lines(c(x2, x2), c(y, y + cont2 / 2) , lwd = 3, col = "red")
+        } else {
+            lines(c(x2, x2), c(y, y + cont2 / 2) , lwd = 3, col  = "blue")
+        }
+        
+        points(x, y, pch = 21, bg = "black")
+        points(x2, y, pch = 21, bg = "grey")
+        
+    }
+    axis(4, 1:nrow(lfcsubcont1) + 1,
+         labels = lfcsubcont1$TXNAME,
+         las = 1
+    )
+    mtext("Isoform",
+          side = 3,
+          padj = 0, 
+          adj = 1.25,
+          cex = 1.2
+    )
+    locus <- trimws(strsplit(gene, ";")[[1]][2])
+    acronym <- acrotable[acrotable$Mt5.0..r1.7..locus.tag == locus,]$ACRONYM
+    if(acronym != 0) {
+        title(paste("Isoform Proportion and Log2-Fold Change of\n", acronym))
+    } else {
+        title(paste("Isoform Proportion and Log2-Fold Change of\n", locus))
+    }
+    name1 <- strsplit(contrast1, "vs")[[1]][1]
+    name2 <- strsplit(contrast2, "vs")[[1]][1]
+    
+    par(xpd = T)
+    legend("bottom",
+           inset = c(-0.5, -1),
+           legend = c(paste(name1, "proportion in contrast:", contrast1),
+                      paste(name2, "proportion in contrast:", contrast2),
+                      "Positive LFC",
+                      "Negative LFC"
+           ),
+           col = c("black", "black", "red", "blue"),
+           pt.bg = c("black", "grey"),
+           pch = c(21, 21, 15, 15),
+           text.width = 0.9
+    )
+}
+
+plotMultiReg <- function(genes_out, cts, lfc) {
+    for(i in genes_out) {
+        sub <- cts[cts$GENEID == i,]
+        
+        sub_lfc <- data.frame(matrix(NA, ncol = ncol(lfc)))
+        colnames(sub_lfc) <- colnames(lfc)
+        count <- 1
+        for(i in 1:nrow(sub)) {
+            for(j in 1:nrow(lfc)) {
+                if(sub$TXNAME[i] == lfc$TXNAME[j]) {
+                    sub_lfc[count,] <- lfc[j,]
+                    count <- count + 1
+                }
+            }
+        }
+        print(sub_lfc)
+        
+        sub <- as.matrix(sub_lfc)
+        rm(sub_lfc)
+        rownames(sub) <- sub[,1]
+        sub <- sub[,2:ncol(sub)]
+        sub_lfc <- matrix(NA, nrow = nrow(sub), ncol = ncol(sub))
+        colnames(sub_lfc) <- colnames(sub)
+        rownames(sub_lfc) <- rownames(sub)
+        for(i in 1:nrow(sub)) {
+            for(j in 1:ncol(sub)) {
+                sub_lfc[i,j] <- as.numeric(sub[i,j])
+            }
+        }
+        rm(sub)
+        
+        print(sub_lfc)
+        par(xpd = F)
+        barplot(sub_lfc,
+                beside = TRUE,
+                legend = rownames(sub_lfc),
+                args.legend = list(x = "top")
+                )
+    }
 }
