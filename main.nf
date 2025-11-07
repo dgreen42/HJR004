@@ -100,6 +100,8 @@ process stage_wise_analysis {
 		path "de_summary.csv"
 		path "de_adjusted_results.csv"
 		path "de_adjusted_pvalues.csv"
+		path "de_sample_info.csv"
+		path "de_filtered_counts.csv"
 		path "taxa_to_gene_distribution.csv"
 		path "dex_adjusted_pval.csv"
 		path "dex_altsplice.csv"

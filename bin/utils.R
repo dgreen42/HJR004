@@ -55,7 +55,7 @@ tryAcroGrep <- function(gene, acronym_list) {
     )
 }
 
-plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_list = NULL, suppress_plot = F) {
+plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_list = NULL, conversion_table = NULL, cts = NULL, suppress_plot = F) {
     par(xpd = F)
     tryCatch(grepd <- system2("grep", args = paste(gene, annotation), stdout = T),
              error = function(cond) {
@@ -132,6 +132,15 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
     
     if (is.null(prop) & suppress_plot != T) {
         transcripts <- unique(featureFrame$transcriptid)
+        if(!is.null(conversion_table)) {
+            transcript_names <- convertIsoformNames(conversion_table, transcripts,
+                                               paste("gene_biotype mRNA;", gene)
+                                               )
+            if(is.na(transcript_names[1])) {
+                transcript_names <- transcripts
+            }
+            print(transcript_names)
+        }
         par(mai = c(1.02,2,1,0.42))
         xlimit =  c(as.integer(min(featureFrame$start)), as.integer(max(featureFrame$end)))
         if (is.null(gene_name)) {
@@ -157,7 +166,7 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
         } 
         axis(side = 2,
              at = 1:length(transcripts),
-             labels = transcripts,
+             labels = transcript_names,
              las = 1,
              cex.axis = 0.8)
         count <- 0
@@ -201,6 +210,15 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
                     strand = featureFrame$strand[1])) 
     } else if (suppress_plot != T) {
         transcripts <- unique(featureFrame$transcriptid)
+        if(!is.null(conversion_table)) {
+            transcript_names <- convertIsoformNames(conversion_table, transcripts,
+                                               paste("gene_biotype mRNA;", gene)
+                                               )
+            if(is.na(transcript_names[1])) {
+                transcript_names <- transcripts
+            }
+            print(transcript_names)
+        }
         par(mai = c(1.02,2,1,1))
         xlimit =  c(as.integer(min(featureFrame$start)), as.integer(max(featureFrame$end)))
         if (is.null(gene_name)) {
@@ -226,7 +244,7 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
         }
         axis(side = 2,
              at = 1:length(transcripts),
-             labels = transcripts,
+             labels = transcript_names,
              las = 1,
              cex.axis = 0.8)
         count <- 0
@@ -317,6 +335,14 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
         )
     } else { 
         transcripts <- unique(featureFrame$transcriptid)
+        if(!is.null(conversion_table)) {
+            transcript_names <- convertIsoformNames(conversion_table, transcripts,
+                                               paste("gene_biotype mRNA;", gene)
+                                               )
+            if(is.na(transcript_names[1])) {
+                transcript_names <- transcripts
+            }
+        }
         ts <- ""
         for(i in transcripts) {
             ts <- paste(ts, i)
@@ -1084,7 +1110,7 @@ plotIsoformLFC <- function(props1, props2, contrast1, contrast2, lfc, gene, acro
     
     par(xpd = T)
     legend("bottom",
-           inset = c(-0.5, -1),
+           inset = c(-0.5, -0.9),
            legend = c(paste(name1, "proportion in contrast:", contrast1),
                       paste(name2, "proportion in contrast:", contrast2),
                       "Positive LFC",
@@ -1097,43 +1123,173 @@ plotIsoformLFC <- function(props1, props2, contrast1, contrast2, lfc, gene, acro
     )
 }
 
-plotMultiReg <- function(genes_out, cts, lfc) {
-    for(i in genes_out) {
-        sub <- cts[cts$GENEID == i,]
-        
-        sub_lfc <- data.frame(matrix(NA, ncol = ncol(lfc)))
-        colnames(sub_lfc) <- colnames(lfc)
-        count <- 1
-        for(i in 1:nrow(sub)) {
-            for(j in 1:nrow(lfc)) {
-                if(sub$TXNAME[i] == lfc$TXNAME[j]) {
-                    sub_lfc[count,] <- lfc[j,]
-                    count <- count + 1
+plotMultiReg <- function(genes, cts, lfc, acrotable, conversion_table) {
+    par(mai = c(1,1,1,3))
+    for(gene in genes) {
+        subset <- cts[cts$GENEID == gene,]
+        print(nrow(subset))
+        if(nrow(subset) == 0) {
+            next
+        } else {
+            sub_lfc <- data.frame(matrix(NA, ncol = ncol(lfc)))
+            colnames(sub_lfc) <- colnames(lfc)
+            count <- 1
+            for(i in 1:nrow(subset)) {
+                for(j in 1:nrow(lfc)) {
+                    if(subset$TXNAME[i] == lfc$TXNAME[j]) {
+                        sub_lfc[count,] <- lfc[j,]
+                        count <- count + 1
+                    }
+                }
+            }
+            
+            rnames <- convertIsoformNames(conversion_table, sub_lfc[,1], gene)
+            rownames(sub_lfc) <- rnames
+            
+            sub_lfc <- sub_lfc[,2:ncol(sub_lfc)]
+            sub <- as.matrix(sub_lfc)
+            sub_lfc <- matrix(NA, nrow = nrow(sub), ncol = ncol(sub))
+            colnames(sub_lfc) <- colnames(sub)
+            rownames(sub_lfc) <- rownames(sub)
+            for(i in 1:nrow(sub)) {
+                for(j in 1:ncol(sub)) {
+                    sub_lfc[i,j] <- as.numeric(sub[i,j])
+                }
+            }
+            
+            locus <- trimws(strsplit(gene, ";")[[1]][2])
+            acronym <- acrotable[acrotable$Mt5.0..r1.7..locus.tag == locus,]$ACRONYM
+            name <- gene
+            if(is.na(locus) & length(acronym) == 0) {
+                name <- name
+            } else if(length(acronym) != 0 & sum(is.na(acronym)) == 0) {
+                name <- acronym
+            } else if (!is.na(locus)) {
+                name <- locus 
+            } else {
+                name <- name 
+            }
+            
+            par(xpd = F, cex = 0.8)
+            barplot(sub_lfc,
+                    beside = TRUE,
+                    legend = rownames(sub_lfc),
+                    xlab = "Contrast",
+                    ylab = "LFC",
+                    main = paste("LFC of", name, "Isoforms"),
+                    args.legend = list(x = "right",
+                                       inset = c(-0.8, 0))
+            )
+            
+            abline(h = 0, col = "black", lwd = 3)
+            abline(h = -1, col = "red", lwd = 1)
+            abline(h = -0.5, col = "blue", lwd = 1)
+            abline(h = 1, col = "red", lwd = 1)
+            abline(h = 0.5, col = "blue", lwd = 1)
+        }
+    }
+}
+
+convertIsoformNames <- function(conversion_table, isoforms, gene) {
+    c_sub <- conversion_table[conversion_table$GENEID == gene,]
+    rnames <- rep(NA, length(isoforms))
+    count <- 1
+    
+    if(nrow(c_sub) == 0) {
+        return(NA)
+    } else {
+        print("new")
+        for(i in isoforms) {
+            print(i)
+            for(j in 1:nrow(c_sub)) {
+                comp <- c_sub$BAMBUTX[j]
+                print(comp)
+                if(i == comp) {
+                    if(is.na(c_sub$acronym[1])) {
+                        rnames[count] <- c_sub$ISOFORM[j]
+                        count <- count + 1
+                    } else {
+                        rnames[count] <- c_sub$acronym[j]
+                        count <- count + 1
+                    }
                 }
             }
         }
-        print(sub_lfc)
-        
-        sub <- as.matrix(sub_lfc)
-        rm(sub_lfc)
-        rownames(sub) <- sub[,1]
-        sub <- sub[,2:ncol(sub)]
-        sub_lfc <- matrix(NA, nrow = nrow(sub), ncol = ncol(sub))
-        colnames(sub_lfc) <- colnames(sub)
-        rownames(sub_lfc) <- rownames(sub)
-        for(i in 1:nrow(sub)) {
-            for(j in 1:ncol(sub)) {
-                sub_lfc[i,j] <- as.numeric(sub[i,j])
-            }
-        }
-        rm(sub)
-        
-        print(sub_lfc)
-        par(xpd = F)
-        barplot(sub_lfc,
-                beside = TRUE,
-                legend = rownames(sub_lfc),
-                args.legend = list(x = "top")
-                )
+        return(rnames)
     }
 }
+
+calculateReplicateDiffs <- function(cts, taxa) {
+    order <- colnames(cts)
+    diff_order <- c(
+        order[1],
+        paste(order[2], "-", order[3]),
+        paste(order[2], "-", order[4]),
+        paste(order[3], "-", order[4])
+    )
+    
+    diffs <- foreach(
+        tx = taxa,
+        .combine = "rbind"
+    ) %do% {
+        txrow <- cts[cts$TXNAME == tx,]
+        df <- data.frame(matrix(NA, ncol = ncol(cts), nrow = 1))
+        df[1,1] = tx
+        df[1,2] = abs(txrow[2] - txrow[3])
+        df[1,3] = abs(txrow[2] - txrow[4])
+        df[1,4] = abs(txrow[3] - txrow[4])
+        colnames(df) <- diff_order 
+        df
+    }
+    return(diffs)
+}
+
+getReplicateDiffStats <- function(diffs, plots_only = F) {
+    title <- paste("Average Differences in Replicates by Taxa\n ", colnames(diffs)[2], "|", colnames(diffs)[3], "|", colnames(diffs)[4])
+    xl <- "Taxa index"
+    yl <- "Average difference in replicates"
+    if (is.na(plots_only)) {
+        for(i in 1:nrow(diffs)) {
+            avg <- mean(as.numeric(diffs[i,2:4]))
+            diffs$avg[i] <- avg
+        }
+        
+        dens <- density(as.numeric(diffs$avg))
+        print(dens)
+        return(diffs)
+        
+    } else if(plots_only == T) {
+        dens <- density(as.numeric(diffs$avg))
+        hist(diffs$avg, main = title)
+        barplot(diffs$avg, xlab = xl, ylab = yl, main = title)
+        plot(diffs$avg, pch = 16, xlab = xl, ylab = yl, main = title, cex = 0.5)
+        abline(h = 10000, lty = 2)
+        abline(h = -10000, lty = 2)
+        abline(h = 1000, col = "blue")
+        abline(h = -1000, col = "blue")
+        abline(h = 2000, col = "red")
+        abline(h = -2000, col = "red")
+        plot(dens, main = paste("Density of", title))
+        print(dens)
+        return(diffs)
+    } else {
+        for(i in 1:nrow(diffs)) {
+            avg <- mean(as.numeric(diffs[i,2:4]))
+            diffs$avg[i] <- avg
+        }
+        
+        dens <- density(as.numeric(diffs$avg))
+        hist(diffs$avg)
+        barplot(diffs$avg, xlab = xl, ylab = yl, main = title)
+        plot(diffs$avg, pch = 16, xlab = xl, ylab = yl, main = title, cex = 0.5)
+        abline(h = 10000, lty = 2)
+        abline(h = -10000, lty = 2)
+        abline(h = 1000, col = "blue")
+        abline(h = -1000, col = "blue")
+        abline(h = 2000, col = "red")
+        abline(h = -2000, col = "red")
+        plot(dens)
+        print(dens)
+        return(diffs)
+    }
+}       

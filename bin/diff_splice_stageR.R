@@ -62,6 +62,8 @@ volcanoplot(fit2, coef = 2)
 title("Log2 Fold Change vs. -log10 Pvalues")
 dev.off()
 
+write.csv(dge$counts, file = "de_filtered_counts.csv")
+write.csv(dge$samples, file = "de_sample_info.csv")
 write.csv(fit2$coefficients, file = "de_coefficients.csv")
 write.csv(de, file = "de_results.csv")
 write.csv(summary.TestResults(de), file = "de_summary.csv")
