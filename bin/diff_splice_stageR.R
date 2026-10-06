@@ -1,4 +1,5 @@
 #!/usr/bin/env Rscript
+library(dplyr)
 library(stageR)
 library(edgeR)
 library(DEXSeq)
@@ -38,52 +39,53 @@ allData <- c(samp, n, group)
 sampleData <- data.frame(matrix(allData, ncol = ncol(sample_sheet), nrow(sample_sheet))) 
 # keep this for later use since sampleData gets changed in the stage wise analysis of the alternative transcripts
 colnames(sampleData) <- colnames(sample_sheet)
-dge <- DGEList(counts = cts, group = group)
-expDesign <- model.matrix(~0+group, data = dge$samples)
-colnames(expDesign) <- levels(dge$samples$group)
-cmpOffset <- 2
-keep <- rowSums(cpm(round(cts, digit = 0))>cmpOffset) >= 2
-dge <- DGEList(cts[keep,])
-colnames(dge) <- rownames(expDesign)
-dge <- calcNormFactors(dge)
-voomObj <- voom(dge, expDesign, plot=T)
-fit <- lmFit(voomObj, expDesign)
-contrast.matrix <- makeContrasts(nod-irt, nod-mrt, irt-mrt, levels = expDesign)
-fit2 <- contrasts.fit(fit, contrast.matrix)
-fit2 <- eBayes(fit2)
-de <- decideTests(fit2)
-ven <- vennCounts(de)
-png("de_results_venn_diagram.png")
-vennDiagram(ven)
-title("Summary of Differentially Expressed Genes")
-dev.off()
-png("de_volcano.png")
-volcanoplot(fit2, coef = 2)
-title("Log2 Fold Change vs. -log10 Pvalues")
-dev.off()
 
-write.csv(dge$counts, file = "de_filtered_counts.csv")
-write.csv(dge$samples, file = "de_sample_info.csv")
-write.csv(fit2$coefficients, file = "de_coefficients.csv")
-write.csv(de, file = "de_results.csv")
-write.csv(summary.TestResults(de), file = "de_summary.csv")
-
-
-# stage wise analysis
-
-nGenes <- nrow(dge)
-tableF <- topTableF(fit2, number = nGenes, sort.by = "none")
-pScreen <- tableF$P.Value
-names(pScreen) = rownames(tableF)
-pConf <- sapply(1:3, function(i) topTable(fit2, coef = i, number = nGenes, sort.by = "none")$P.Value)
-dimnames(pConf) <- list(rownames(fit2), c("n-i", "n-m", "i-m"))
-stageRObj <- stageR(pScreen = pScreen, pConfirmation = pConf, pScreenAdjusted = F)
-stageRObj <- stageWiseAdjustment(object = stageRObj, method = "none", alpha = 0.05)
-padjde <- getAdjustedPValues(stageRObj, order = T, onlySignificantGenes = T)
-res <- getResults(stageRObj)
-
-write.csv(padjde, "de_adjusted_pvalues.csv")
-write.csv(res, "de_adjusted_results.csv")
+# dge <- DGEList(counts = cts, group = group)
+# expDesign <- model.matrix(~0+group, data = dge$samples)
+# colnames(expDesign) <- levels(dge$samples$group)
+# cmpOffset <- 2
+# keep <- rowSums(cpm(round(cts, digit = 0))>cmpOffset) >= 2
+# dge <- DGEList(cts[keep,])
+# colnames(dge) <- rownames(expDesign)
+# dge <- calcNormFactors(dge)
+# voomObj <- voom(dge, expDesign, plot=T)
+# fit <- lmFit(voomObj, expDesign)
+# contrast.matrix <- makeContrasts(nod-irt, nod-mrt, irt-mrt, levels = expDesign)
+# fit2 <- contrasts.fit(fit, contrast.matrix)
+# fit2 <- eBayes(fit2)
+# dtu <- decideTests(fit2)
+# ven <- vennCounts(dtu)
+# png("dtu_results_venn_diagram.png")
+# vennDiagram(ven)
+# title("Summary of Differential Transcript Usage")
+# dev.off()
+# png("dtu_volcano.png")
+# volcanoplot(fit2, coef = 2)
+# title("Log2 Fold Change vs. -log10 Pvalues")
+# dev.off()
+#
+# write.csv(dge$counts, file = "dtu_filtered_counts.csv")
+# write.csv(dge$samples, file = "dtu_sample_info.csv")
+# write.csv(fit2$coefficients, file = "dtu_coefficients.csv")
+# write.csv(dtu, file = "dtu_results.csv")
+# write.csv(summary.TestResults(dtu), file = "dtu_summary.csv")
+#
+#
+# # stage wise analysis
+#
+# nGenes <- nrow(dge)
+# tableF <- topTableF(fit2, number = nGenes, sort.by = "none")
+# pScreen <- tableF$P.Value
+# names(pScreen) = rownames(tableF)
+# pConf <- sapply(1:3, function(i) topTable(fit2, coef = i, number = nGenes, sort.by = "none")$P.Value)
+# dimnames(pConf) <- list(rownames(fit2), c("n-i", "n-m", "i-m"))
+# stageRObj <- stageR(pScreen = pScreen, pConfirmation = pConf, pScreenAdjusted = F)
+# stageRObj <- stageWiseAdjustment(object = stageRObj, method = "none", alpha = 0.05)
+# padjdtu <- getAdjustedPValues(stageRObj, order = T, onlySignificantGenes = T)
+# res <- getResults(stageRObj)
+#
+# write.csv(padjdtu, "dtu_adjusted_pvalues.csv")
+# write.csv(res, "dtu_adjusted_results.csv")
 
 
 # differential exon expression ----
@@ -110,10 +112,30 @@ dxd <- DEXSeqDataSet(countData = round(tcts, digit = 0),
 dxd <- estimateSizeFactors(dxd)
 dxd <- estimateDispersions(dxd)
 dxd <- testForDEU(dxd, reducedModel = ~ sample + exon + group)
+dxd <- estimateExonFoldChanges(dxd, fitExpToVar = "treatment")
 dxr <- DEXSeqResults(dxd)
 qvalDxr <- perGeneQValue(dxr)
-# stage wise analysis
 
+dxrdf <- data.frame(matrix(NA, nrow = nrow(dxr), ncol = 1))
+columns <- c("empty")
+count <- 1
+for(i in 1:ncol(dxr)) {
+    if(colnames(dxr)[i] != "genomicData" && all(colnames(dxr)[i] != columns)) {
+        dxrdf[,count] <- dxr[,i]
+        columns[count] <- colnames(dxr)[i]
+        count <- count + 1
+    } else {
+        next
+    }
+}
+
+colnames(dxrdf) <- columns
+
+
+write.csv(dxrdf, "dex_results.csv")
+write.csv(qvalDxr, "dex_qvals.csv")
+
+# stage wise analysis
 
 pConf <- matrix(dxr$pvalue, ncol = 1)
 dimnames(pConf) <- list(c(dxr$featureID), c("transcript"))

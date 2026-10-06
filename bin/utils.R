@@ -2,40 +2,6 @@
 library(RColorBrewer)
 library(foreach)
 
-plotSpliceReg <- function(data, set, GeneID, order = NULL) {
-    par(mai = c(1.02,0.82,0.82,0.42), xpd = F)
-    pre_isoforms <- data[data$GENEID == GeneID,]
-    print(pre_isoforms)
-    if (!is.null(order)) {
-        t_list <- rev((strsplit(trimws(order), " "))[[1]])
-        isoforms <- data.frame(matrix(NA, nrow = 1, ncol = ncol(pre_isoforms))) 
-        n <- 0
-        for(ts in t_list) {
-            print(ts)
-            n <- n + 1
-            isoforms[n,] <- pre_isoforms[rownames(pre_isoforms) == ts,]
-        }
-        rownames(isoforms) <- isoforms[,1]
-        colnames(isoforms) <- colnames(pre_isoforms)
-    } else {
-        isoforms <- pre_isoforms
-    }
-    barplot(isoforms$logFC,
-            main = paste0("LFC of ", GeneID, "\n", set),
-            xlab = "Transcript",
-            ylab = "log fold change (LFC)"
-            )
-    abline(h = 0, col = "red", lwd = 3)
-    if (nrow(isoforms) > 3) {
-        font.size <- 0.6
-    } else {
-        font.size <- 0.8
-    }
-    for (i in 1:nrow(isoforms)) {
-        axis(1, i, rownames(isoforms)[i], las = 1, cex.axis = font.size)
-    }
-}
-
 tryAcroGrep <- function(gene, acronym_list) {
     tryCatch(acro_grep <- system2("grep", args = paste(gene, acronym_list), stdout = T),
              error = function(cond) {
@@ -87,7 +53,6 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
     rawFeatures <- strsplit(grepd, split = "\t")
     featureFrame <- data.frame(matrix(NA, ncol = length(rawFeatures[[1]]), nrow = length(rawFeatures)))
     colnames(featureFrame) <- c("seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute")
-    
     for (i in 1:length(rawFeatures)) {
         featureFrame[i,] <- rawFeatures[[i]]
     }
@@ -139,7 +104,6 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
             if(is.na(transcript_names[1])) {
                 transcript_names <- transcripts
             }
-            print(transcript_names)
         }
         par(mai = c(1.02,2,1,0.42))
         xlimit =  c(as.integer(min(featureFrame$start)), as.integer(max(featureFrame$end)))
@@ -217,7 +181,6 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
             if(is.na(transcript_names[1])) {
                 transcript_names <- transcripts
             }
-            print(transcript_names)
         }
         par(mai = c(1.02,2,1,1))
         xlimit =  c(as.integer(min(featureFrame$start)), as.integer(max(featureFrame$end)))
@@ -273,14 +236,11 @@ plotIsoform <- function(gene, annotation, exon_marker = F, prop = NULL, acronym_
             plist[count,] <- prop[i,]
             count <- count + 1
         }
-        print(plist)
         count <- 1
-        #fix ordering of props
         for (i in transcripts) {
             for (j in 1:nrow(plist)) {
                 if (i == plist$TXNAME[j]) {
                     props[count] <- round(as.double(plist$prop[j]), digit = 4)
-                    print(props[count])
                     count <- count + 1
                 } else {
                     next
@@ -718,7 +678,84 @@ plotPropHeatamp <- function(propTable, gene) {
     return(hm)
 }
 
-plotHeatmapIso <- function(propTable, gene, color) {
+coolMap <- function(data, cluster = F) {
+    m <- as.matrix(data)
+    d <- dist(m)
+    h <- hclust(d)
+    par(xpd = T, mai = c(1.3, 1, 0.4, 3.5))
+    plot(NA, xlim = c(0, ncol(m)), ylim = c(0, nrow(m)),
+         xaxt = 'n',
+         yaxt = 'n',
+         bty = 'n',
+         xlab = NA,
+         ylab = NA
+    )
+    color <- NULL
+    
+    if(cluster == T) {
+        for(i in 1:ncol(m)) {
+            count <- 1
+            for(j in h$order) {
+                if(m[j,i] == 1) {
+                    color <- "red"
+                } else if (m[j,i] == -1) {
+                    color <- "blue"
+                } else if (m[j,i] == 0) {
+                    color <- "white"
+                } else {
+                    print("what?")
+                }
+                polygon(
+                    border = NA,
+                    x = c(i-1, i, i, i-1),
+                    y = c(count-1, count-1, count, count),
+                    col = color
+                )
+                count <- count + 1
+            }
+            legend("right",
+                   legend = c("Upregulated", "No signigicant change", "Downregulated"),
+                   col = c("red", "white", "blue"),
+                   pch = 15,
+                   inset = c(-1, 0)
+            )
+        }
+    } else {
+        for(i in 1:ncol(m)) {
+            for(j in 1:nrow(m)) {
+                if(m[j,i] == 1) {
+                    color <- "red"
+                } else if (m[j,i] == -1) {
+                    color <- "blue"
+                } else if (m[j,i] == 0) {
+                    color <- "black"
+                } else {
+                    print("what?")
+                }
+                polygon(
+                    border = NA,
+                    x = c(i-1, i, i, i-1),
+                    y = c(j-1, j-1, j, j),
+                    col = color
+                )
+                color <- NULL
+            }
+            legend("right",
+                   legend = c("Upregulated", "No signigicant change", "Downregulated"),
+                   col = c("red", "black", "blue"),
+                   pch = 15,
+                   inset = c(0, 0)
+            )
+        }
+    }
+    axis(1,
+         at = c(0.5,1.5,2.5),
+         labels = colnames(data),
+         las = 2
+    )
+}
+
+plotHeatmapIso <- function(propTable, gene, ctable = NULL, color, title = NULL, include_total = F, order = NULL) {
     if (!is.data.frame(propTable)) {
         stop("must provide a data.frame")
     } else {
@@ -729,14 +766,27 @@ plotHeatmapIso <- function(propTable, gene, color) {
                 propMat[i,j - 2] <- as.numeric(subset[i,j])
             }
         }
+        
         rownames(propMat) <- subset$TXNAME
+        if(!is.null(ctable)) {
+            converted_names <- c()
+            for(name in rownames(propMat)) {
+                cname <- ctable[ctable$BAMBUTX == name,]$acronym
+                converted_names <- append(converted_names, cname)
+            }
+            rownames(propMat) <- converted_names
+        }
         colnames(propMat) <- colnames(subset[,3:ncol(subset)])
+        
+        if(!isTRUE(include_total)) {
+            propMat <- propMat[,1:3]
+        }
         
         divx <- seq(1, ncol(propMat))
         divy <- seq(1, nrow(propMat))
         xlimit = c(0, ncol(propMat))
         ylimit = c(0, nrow(propMat))
-        par(xpd = T, mai = c(0.5, 2, 0.3, 1))
+        par(xpd = T, mai = c(0.5, 2, 0.3, 1.5))
         plot(NA, xlim = xlimit, ylim = ylimit,  bty = "n", xaxt = "n", yaxt = "n",
              xlab = NA, ylab = NA)
         xaxisat <- 1:ncol(propMat) - 0.5
@@ -754,7 +804,7 @@ plotHeatmapIso <- function(propTable, gene, color) {
                 )
             }
         }
-        nums <- round(seq(0, max(propMat), length.out = 10), digit = 2)
+        nums <- round(seq(0, max(propMat), length.out = 10), digit = 2)*100
         lcolnums <- round(seq(1, length(colors), by = length(colors)/length(nums)), digit = 0)
         lcol <- c()
         count <- 1
@@ -788,14 +838,10 @@ plotHeatmapIso <- function(propTable, gene, color) {
             )
             yadd <- yadd + ysizer
         }
-        # legend(x = xleg,
-        #        y = yleg,
-        #        inset = c(-0.2,0),
-        #        legend = nums,
-        #        col = lcol,
-        #        pch = 15,
-        #        pt.cex = 3
-        # )
+        axis(4, 4, "% abundance of sequenced transcripts", tick = F, padj = 6, hadj = 0.8)
+        if(!is.null(title)) {
+            title(title)
+        }
     }
     
     returnl <- list(
@@ -882,7 +928,6 @@ count_udns <- function(results) {
     for(row in 1:nrow(results)) {
         if (row[1] == 1) {
             for(i in 2:ncol(results)) {
-                print(row[i])
                 if (row[i] == 1) {
                     resultsFrame[3,i] <- resultsFrame[3,i] + 1
                 } else if (row[i] == -1) {
@@ -938,7 +983,7 @@ propsAsNumeric <- function(props) {
     return(props)
 }
 
-copyDFscructure <- function(df, all = T) {
+copyDFscructure <- function(df, all = F) {
     if (all == T) {
         structure <- data.frame(matrix(NA, nrow = nrow(df), ncol = ncol(df)))
     } else if(all == F) {
@@ -957,6 +1002,7 @@ filterPScreen <- function(de, screen) {
     for(i in 1:nrow(screen)) {
         if(screen$padjScreen[i] != 0) {
             screened[count,] <- de[i,]
+            rownames(screened)[count] <- rownames(de)[i]
             count <- count + 1
         }
     }
@@ -998,18 +1044,45 @@ plotTable <- function(dataframe) {
     }
 }
 
-getDEacro <- function(dets, counts, acrotable) {
+getDEacro <- function(degs, counts, acrotable) {
     t <- copyDFscructure(acrotable, all = F)
     count <- 1
+    for(i in 1:nrow(degs)) {
+        gene <- trimws(strsplit(counts$GENEID[counts$GENEID == rownames(degs)[i]], ";")[[1]][2])
+        if(is.na(gene)) {
+            gene <- gcts$GENEID[gcts$GENEID == rownames(degs)[i]]
+        } else {
+            info <- acrotable[acrotable[,1] == gene,]
+            if(nrow(info) != 0) {
+                for(i in 1:nrow(info)) {
+                    t[count,] <- info[i,]
+                    count <- count + 1
+                }
+            }
+        }
+    }
+    return(t)
+}
+
+
+getDTUacro <- function(dets, counts, acrotable) {
+    t <- copyDFscructure(acrotable, all = F)
+    t$transcript_name <- NA
+    count <- 1
+    
     for(i in 1:nrow(dets)) {
-        gene <- trimws(strsplit(counts$GENEID[counts$TXNAME == rownames(dets)[i]], ";")[[1]][2])
+        geneid <- counts$GENEID[counts$TXNAME == rownames(dets)[i]]
+        gene <- trimws(strsplit(geneid, ";")[[1]][2])
         if(is.na(gene)) {
             next
         } else {
             info <- acrotable[acrotable[,1] == gene,]
             if(nrow(info) != 0) {
-                t[count,] <- info
-                count <- count + 1
+                for(j in 1:nrow(info)) {
+                    info$transcript_name <- rownames(dets)[i]
+                    t[count,] <- info[j,]
+                    count <- count + 1
+                }
             }
         }
     }
@@ -1028,6 +1101,24 @@ findGenes <- function(table, pattern) {
             next
         }
     }
+    return(df)
+}
+
+findGenes2 <- function(table, pattern) {
+    df <- copyDFscructure(table, all = F)
+    rnames <- NULL
+    count <- 1
+    for(i in 1:nrow(table)) {
+        grp <- grepl(pattern, rownames(table)[i], ignore.case = T)
+        if(grp) {
+            df[count,] <- table[i,]
+            rnames[count] <- rownames(table)[i]
+            count <- count + 1
+        } else {
+            next
+        }
+    }
+    rownames(df) <- rnames
     return(df)
 }
 
@@ -1127,7 +1218,6 @@ plotMultiReg <- function(genes, cts, lfc, acrotable, conversion_table) {
     par(mai = c(1,1,1,3))
     for(gene in genes) {
         subset <- cts[cts$GENEID == gene,]
-        print(nrow(subset))
         if(nrow(subset) == 0) {
             next
         } else {
@@ -1157,6 +1247,8 @@ plotMultiReg <- function(genes, cts, lfc, acrotable, conversion_table) {
                 }
             }
             
+            print(sub_lfc)
+            
             locus <- trimws(strsplit(gene, ";")[[1]][2])
             acronym <- acrotable[acrotable$Mt5.0..r1.7..locus.tag == locus,]$ACRONYM
             name <- gene
@@ -1176,7 +1268,7 @@ plotMultiReg <- function(genes, cts, lfc, acrotable, conversion_table) {
                     legend = rownames(sub_lfc),
                     xlab = "Contrast",
                     ylab = "LFC",
-                    main = paste("LFC of", name, "Isoforms"),
+                    main = paste("LFC of", name, "Isoforms \n", locus),
                     args.legend = list(x = "right",
                                        inset = c(-0.8, 0))
             )
@@ -1186,6 +1278,9 @@ plotMultiReg <- function(genes, cts, lfc, acrotable, conversion_table) {
             abline(h = -0.5, col = "blue", lwd = 1)
             abline(h = 1, col = "red", lwd = 1)
             abline(h = 0.5, col = "blue", lwd = 1)
+            abline(v = (length(rownames(sub_lfc)) + 1.5), col = "black", lwd = 1, lty = 2)
+            axis(2, 0.5, "0.5", tick = F)
+            axis(2, 1, "1", tick = F)
         }
     }
 }
@@ -1198,12 +1293,9 @@ convertIsoformNames <- function(conversion_table, isoforms, gene) {
     if(nrow(c_sub) == 0) {
         return(NA)
     } else {
-        print("new")
         for(i in isoforms) {
-            print(i)
             for(j in 1:nrow(c_sub)) {
                 comp <- c_sub$BAMBUTX[j]
-                print(comp)
                 if(i == comp) {
                     if(is.na(c_sub$acronym[1])) {
                         rnames[count] <- c_sub$ISOFORM[j]
@@ -1255,14 +1347,13 @@ getReplicateDiffStats <- function(diffs, plots_only = F) {
         }
         
         dens <- density(as.numeric(diffs$avg))
-        print(dens)
         return(diffs)
         
     } else if(plots_only == T) {
         dens <- density(as.numeric(diffs$avg))
         hist(diffs$avg, main = title)
         barplot(diffs$avg, xlab = xl, ylab = yl, main = title)
-        plot(diffs$avg, pch = 16, xlab = xl, ylab = yl, main = title, cex = 0.5)
+        plot(diffs$avg, pch = 16, xlab = xl, ylab = yl, main = title, cex = 0.5, log = "y")
         abline(h = 10000, lty = 2)
         abline(h = -10000, lty = 2)
         abline(h = 1000, col = "blue")
@@ -1270,7 +1361,6 @@ getReplicateDiffStats <- function(diffs, plots_only = F) {
         abline(h = 2000, col = "red")
         abline(h = -2000, col = "red")
         plot(dens, main = paste("Density of", title))
-        print(dens)
         return(diffs)
     } else {
         for(i in 1:nrow(diffs)) {
@@ -1281,7 +1371,7 @@ getReplicateDiffStats <- function(diffs, plots_only = F) {
         dens <- density(as.numeric(diffs$avg))
         hist(diffs$avg)
         barplot(diffs$avg, xlab = xl, ylab = yl, main = title)
-        plot(diffs$avg, pch = 16, xlab = xl, ylab = yl, main = title, cex = 0.5)
+        plot(diffs$avg, pch = 16, xlab = xl, ylab = yl, main = title, cex = 0.5, log = "y")
         abline(h = 10000, lty = 2)
         abline(h = -10000, lty = 2)
         abline(h = 1000, col = "blue")
@@ -1289,7 +1379,431 @@ getReplicateDiffStats <- function(diffs, plots_only = F) {
         abline(h = 2000, col = "red")
         abline(h = -2000, col = "red")
         plot(dens)
-        print(dens)
         return(diffs)
     }
 }       
+
+plotReplicateDiagnostics <- function(diff_table, c_table, threshold) {
+    extremes <- diff_table[diff_table$avg > threshold,] 
+    
+    extreme_genes <- c()
+    count <- 1
+    for(tx in extremes$TXNAME) {
+        extreme_genes[count] <- c_table[c_table$BAMBUTX == tx,]$GENEID
+        count <- count + 1
+    }
+    extreme_genes <- unique(extreme_genes)
+    
+    plot(NA, xlim = c(-7000, 250000), ylim = c(0, 0.0004),
+         main = paste("Density of Differences for each Taxa in\n", colnames(diff_table)[2], "|", colnames(diff_table)[3], "|", colnames(diff_table)[4]),
+         xlab = "Difference",
+         ylab = "Density")
+    for(i in 1:nrow(extremes)) {
+        lines(density(as.numeric(extremes[i,2:4])))
+    }
+    lines(density(as.numeric(extremes$avg)), col = "red", lwd = 3)
+    abline(v = 1000, col = "darkgreen", lwd = 2)
+    abline(v = 2000, col = "blue", lwd = 2)
+    abline(v = 5000, col = "darkorange", lwd = 2)
+    abline(v = 10000, col = "red", lwd = 2)
+    abline(v = 100000, col = "black", lty = 3, lwd = 2)
+}
+
+plotRDT <- function(diff_table) {
+    rtd <- data.frame(Difference = seq(1000, 10000, by = 1000), Quantity = rep(NA, 10))
+    count <- 1
+    for(i in rtd$Difference) {
+        rtd$Quantity[count] <- nrow(diff_table[diff_table$avg > i,])
+        count <- count + 1
+    }
+    plot(rtd$Difference, rtd$Quantity, pch = 16)
+    lines(rtd$Difference, rtd$Quantity, lty = 3)
+}
+
+getSharedDE <- function(results, group1, group2) {
+    temp <- cbind(rownames(results), results)
+    colnames(temp)[1] <- "ID"
+    shared <- copyDFscructure(temp, all = F)
+    count <- 1
+    group1 <- group1 + 1
+    group2 <- group2 + 1
+    for(i in 1:nrow(results)) {
+        if(temp[i, group1] != 0 && temp[i, group2] != 0) {
+            shared[count,] <- temp[i,]
+            count <- count + 1
+        } else {
+            next
+        }
+    }
+    rownames(shared) <- shared$ID
+    shared <- shared[,2:ncol(shared)]
+    return(shared)
+}
+
+findGeneFamilies <- function(acro_table, gene_families) {
+    big_names <- copyDFscructure(acro_table, all = F) 
+    gene_family_counts <- NULL
+    gene_count <- NULL
+    count <- 1
+    
+    for(family in gene_families) {
+        current_fam <- findGenes(acro_table, family)
+        if (!is.na(current_fam[1,1])) {
+            gene_count[count] <- nrow(current_fam)
+            big_names <- rbind(current_fam, big_names)
+            count <- count + 1
+        } else {
+            gene_count[count] <- 0
+            big_names <- rbind(current_fam, big_names)
+            count <- count + 1
+        }
+    }
+    
+    
+    big_names_summary <- data.frame(gene_families,
+                                    gene_count)
+    
+    colnames(big_names_summary) <- c("Gene Family",
+                                     "Count"
+    )
+    
+    data <- NULL
+    data$big_names <- big_names
+    data$big_names_summary <- big_names_summary
+    return(data)
+}
+
+findGeneFamilies2 <- function(acro_table, gene_families, conversion_table) {
+    big_names <- copyDFscructure(acro_table, all = F) 
+    gene_family_counts <- NULL
+    gene_count <- NULL
+    count <- 1
+    
+    for(family in gene_families) {
+        current_fam <- findGenes(acro_table, family)
+        if (!is.na(current_fam[1,1])) {
+            gene_count[count] <- nrow(current_fam)
+            big_names <- rbind(current_fam, big_names)
+            count <- count + 1
+        } else {
+            gene_count[count] <- 0
+            big_names <- rbind(current_fam, big_names)
+            count <- count + 1
+        }
+    }
+    
+    
+    
+    big_names_summary <- data.frame(gene_families,
+                                    gene_count)
+    
+    colnames(big_names_summary) <- c("Gene Family",
+                                     "Count"
+    )
+    
+    data <- NULL
+    data$big_names <- na.omit(big_names)
+    data$big_names_summary <- big_names_summary
+    
+    return(data)
+}
+
+
+getDEdiff <- function(gene_set1, gene_set2, gene_fam) {
+    all_diffs <- list() 
+    all_count <- 1
+    
+    
+    for(gene in gene_fam) {
+        diff1 <- NULL
+        diff2 <- NULL
+        
+        set1 <- gene_set1$big_names[grepl(gene, gene_set1$big_names$ACRONYM, ignore.case = T),]
+        set2 <- gene_set2$big_names[grepl(gene, gene_set2$big_names$ACRONYM, ignore.case = T),]
+        
+        count <- 1
+        for(i in set1$ACRONYM) {
+            if(sum(i == set2) > 0) {
+                next
+            } else {
+                diff1[count] <- i
+                count <- count + 1
+            }
+        }
+        
+        count <- 1
+        for(i in set2$ACRONYM) {
+            if(sum(i == set1) > 0) {
+                next
+            } else {
+                diff2[count] <- i
+                count <- count + 1
+            }
+        }
+        diffs <- list(diff1, diff2)
+        names(diffs) <- c(gene_set1$contrast, gene_set2$contrast)
+        all_diffs[[gene]] <- diffs
+        all_count <- all_count + 1
+    }
+    
+    names(all_diffs) <- gene_fam
+    
+    return(all_diffs)
+}
+
+getDEgenes <- function(de_table, acrotable, gene_family) {
+    all_degenes <- NULL
+    for(fam in gene_family) {
+        geneset <- acrotable[grepl(fam, acrotable$ACRONYM),][,1]
+        geneacro <- acrotable[grepl(fam, acrotable$ACRONYM),][,2]
+        
+        count <- 1
+        for(i in geneset) {
+            geneset[count] <- paste("gene_biotype mRNA;", i, sep = " ")
+            count <- count + 1
+        }
+        if(length(geneset) == 0) {
+            message("No genes found")
+            return(NA)
+        }
+        degenes <- copyDFscructure(de_table, all = F) 
+        count <- 1
+        for(i in geneset) {
+            rows <- de_table[rownames(de_table) == i,]
+            if(nrow(rows) != 0) {
+                degenes[count,] <- rows
+                count <- count + 1
+            } else {
+                next
+            }
+        }
+        rownames(degenes) <- geneset 
+        degenes$acronym <- geneacro
+        all_degenes <- rbind(all_degenes, degenes)
+    }
+    
+    return(all_degenes)
+}
+
+getDTUgenes <- function(dtu_table, acrotable, ctable, gene_family) {
+    all_degenes <- NULL
+    for(fam in gene_family) {
+        geneset <- acrotable[grepl(fam, acrotable$ACRONYM),][,1]
+        
+        count <- 1
+        for(i in geneset) {
+            geneset[count] <- paste("gene_biotype mRNA;", i, sep = " ")
+            count <- count + 1
+        }
+        
+        if(length(geneset) == 0) {
+            message("No genes found")
+            return(NA)
+        }
+        txset <- NULL
+        txacro <- NULL
+        for(gene in geneset) {
+            subset <- ctable[ctable$GENEID == gene,][,2:4]
+            if(nrow(subset) == 0) {
+                message("Gene is not in conversion table")
+                return(NA)
+            }
+            txset <- append(txset, subset$BAMBUTX)
+            txacro <- append(txacro, subset$acronym)
+        }
+        
+        txacronym <- NULL
+        rnames <- NULL
+        degenes <- copyDFscructure(dtu_table, all = F) 
+        count <- 1
+        acount <- 1
+        for(i in txset) {
+            rows <- dtu_table[rownames(dtu_table) == i,]
+            if(nrow(rows) != 0) {
+                degenes[count,] <- rows
+                txacronym[count] <- txacro[acount]
+                rnames[count] <- i
+                count <- count + 1
+                acount <- acount + 1
+            } else {
+                acount <- acount + 1
+                next
+            }
+        }
+        rownames(degenes) <- rnames 
+        degenes$acronym <- txacronym
+        all_degenes <- rbind(all_degenes, degenes)
+    }
+    
+    return(all_degenes)
+}
+
+b2n <- function(ids) {
+    new_ids <- NULL
+    count <- 1
+    for(i in ids) {
+        split <- strsplit(i, ";")[[1]]
+        if(length(split) == 1) {
+            new_ids[count] <- trimws(split[1])
+            count <- count + 1
+        } else {
+            new_ids[count] <- trimws(split[2])
+            count <- count + 1
+        }
+    }
+    return(new_ids)
+}
+
+n2b <- function(ids) {
+    new_ids <- NULL
+    count <- 1
+    for(i in ids) {
+        new_ids[count] <- paste()
+    }
+}
+
+id2acro <- function(ids, acrotable) {
+    acros <- NULL
+    count <- 1
+    for(id in ids) {
+        acros[count] <- acrotable[acrotable[,1] == id,2]
+        count <- count + 1
+    }
+    return(acros)
+}
+
+plotLFC <- function(deLfc, degenes, title = NULL, cols = NULL, minlfc = 0, acrotable = NULL, hide_legend = F) {
+    lfcGene <- copyDFscructure(deLfc)
+    rnames <- NULL
+    count <- 1
+    for(id in rownames(degenes)) {
+        curow <- deLfc[rownames(deLfc) == id,]
+        if(nrow(curow) != 0) {
+            lfcGene[count,] <- curow
+            rnames[count] <- rownames(curow)
+            count <- count + 1
+        } else {
+            next
+        }
+    }
+    rownames(lfcGene) <- rnames
+    # print(lfcGene)
+    # max <- 0 + minlfc
+    # min <- 0 - minlfc
+    # lfcGene <- lfcGene[lfcGene > min & lfcGene < max]
+    # print(lfcGene)
+    
+    if (!is.null(cols)) {
+        bpcols <- cols
+    } else {
+        bpcols <- c()
+        for(i in 1:nrow(lfcGene)) {
+            bpcols <- append(bpcols, colors()[i*4])
+        }
+    }
+    par(mai = c(1,1,0.75,2), xpd = T)
+    barplot(as.matrix(lfcGene),
+            col = bpcols,
+            beside = T,
+            names.arg = contrasts,
+            cex.names = 0.8,
+            xlab = "Contrasts",
+            ylab = "log2 fold change (LFC)",
+            main = title
+    )
+    
+    legendnames <- rownames(lfcGene)
+    if(!is.null(acrotable)) {
+        legendnames <- id2acro(b2n(rownames(lfcGene)), acrotable)
+    }
+    textcex = 0.8
+    if(hide_legend == F) {
+        if(length(legendnames) > 20) {
+            textcex <- 0.6
+        }
+        legend("topright",
+               col = bpcols,
+               legend = legendnames,
+               pch = 15,
+               inset = c(-0.31,0),
+               cex = textcex
+        )
+    }
+}
+
+getSequenceContent <- function(sequence, type = "DNA") {
+    if(type == "DNA") {
+        contents <- list(
+            "A" = 0,
+            "T" = 0,
+            "C" = 0,
+            "G" = 0,
+            total = length(sequence[[1]])
+        )
+        for(i in 1:length(sequence[[1]])) {
+            switch(as.character(sequence[[1]][i]),
+                   "A" = contents$A <- contents$A + 1,
+                   "T" = contents$T <- contents$T + 1,
+                   "C" = contents$C <- contents$C + 1,
+                   "G" = contents$G <- contents$G + 1,
+            )
+        }
+        
+        return(contents)
+    } else if(type == "AA") {
+        contents <- list(
+            "R" = 0,
+            "H" = 0,
+            "K" = 0, 
+            "D" = 0,
+            "E" = 0,
+            "S" = 0,
+            "T" = 0,
+            "N" = 0,
+            "Q" = 0,
+            "C" = 0,
+            "G" = 0,
+            "P" = 0,
+            "A" = 0,
+            "V" = 0,
+            "I" = 0,
+            "L" = 0,
+            "M" = 0,
+            "F" = 0,
+            "Y" = 0,
+            "W" = 0,
+            total = length(sequence[[1]])
+        )
+        for(i in 1:length(sequence[[1]])) {
+            switch(as.character(sequence[[1]][i]),
+                   "R" = contents$R <- contents$R + 1,
+                   "H" = contents$H <- contents$H + 1,
+                   "K" = contents$K <- contents$K + 1,
+                   "D" = contents$D <- contents$D + 1,
+                   "E" = contents$E <- contents$E + 1,
+                   "S" = contents$S <- contents$S + 1,
+                   "T" = contents$T <- contents$T + 1,
+                   "N" = contents$N <- contents$N + 1,
+                   "Q" = contents$Q <- contents$Q + 1,
+                   "C" = contents$C <- contents$C + 1,
+                   "G" = contents$G <- contents$G + 1,
+                   "P" = contents$P <- contents$P + 1,
+                   "A" = contents$A <- contents$A + 1,
+                   "V" = contents$V <- contents$V + 1,
+                   "I" = contents$I <- contents$I + 1,
+                   "L" = contents$L <- contents$L + 1,
+                   "M" = contents$M <- contents$M + 1,
+                   "F" = contents$F <- contents$F + 1,
+                   "Y" = contents$Y <- contents$Y + 1,
+                   "W" = contents$W <- contents$W + 1
+            )
+        }
+        
+        return(contents)
+    }
+}
+
+getSequencePercent <- function(AAcontents, letter) {
+    numer <- eval(parse(text = paste(deparse(substitute(AAcontents)), "$", letter, sep = "")))
+    return((numer/AAcontents$total) * 100)
+}

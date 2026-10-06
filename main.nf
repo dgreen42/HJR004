@@ -61,7 +61,7 @@ process align_and_map {
 	"""
 }
 
-process count_transcripts {
+process get_counts {
 	label "HJR004"
 	cpus 4
 	memory "16 GB"
@@ -72,7 +72,7 @@ process count_transcripts {
 		val ndr
 		path bams
 	output:
-		path "bambu_out/HJR004_counts_gene.txt"
+		path "bambu_out/HJR004_counts_gene.txt", emit: genes
 		path "bambu_out/HJR004_counts_transcript.txt", emit: transcripts
 		path "bambu_out/HJR004_CPM_transcript.txt"
 		path "bambu_out/HJR004_extended_annotations.gtf", emit: ext_anno
@@ -84,38 +84,59 @@ process count_transcripts {
 	"""
 }
 
-process stage_wise_analysis {
+process stage_wise_de_analysis {
 	label "HJR004"
 	cpus 4
 	memory "16GB"
-	publishDir "analysis", mode: "copy"
+	publishDir "de_analysis", mode: "copy"
 	input:
 		val counts
 		val anno
 		val sample_sheet
 		val acronym_list
 	output:
+		path "de_sample_info.csv"
+		path "de_filtered_counts.csv"
+		path "de_mds_plot.png"
+		path "de_results_venn_diagram.png"
 		path "de_coefficients.csv"
 		path "de_results.csv"
 		path "de_summary.csv"
-		path "de_adjusted_results.csv"
 		path "de_adjusted_pvalues.csv"
-		path "de_sample_info.csv"
-		path "de_filtered_counts.csv"
+		path "de_adjusted_results.csv"
+		path "de_volcano.png"
+	script:
+	"""
+		de_stageR.R ${counts} ${anno} ${sample_sheet} ${acronym_list}
+	"""
+}
+
+process stage_wise_dtu_analysis {
+	label "HJR004"
+	cpus 4
+	memory "16GB"
+	publishDir "dtu_analysis", mode: "copy"
+	input:
+		val counts
+		val anno
+		val sample_sheet
+		val acronym_list
+	output:
 		path "taxa_to_gene_distribution.csv"
+		path "dex_results.csv"
+		path "dex_qvals.csv"
 		path "dex_adjusted_pval.csv"
 		path "dex_altsplice.csv"
 		path "dex_isoform_proportions.csv"
 		path "dex_isoform_proportions_nod.csv"
 		path "dex_isoform_proportions_irt.csv"
 		path "dex_isoform_proportions_mrt.csv"
-		path "de_results_venn_diagram.png"
-		path "de_volcano.png"
 	script:
 	"""
 		diff_splice_stageR.R ${counts} ${anno} ${sample_sheet} ${acronym_list}
 	"""
 }
+
 workflow {
 
 	error = null
@@ -175,8 +196,9 @@ workflow {
 		me = methylation_analysis(fastq, bams, ref_genome)
 	}
 
-	count_transcripts(ref_genome, ref_anno, params.ndr, bams)
-	stage_wise_analysis(count_transcripts.out.transcripts, count_transcripts.out.ext_anno, sample_sheet, acronym_list)
+	get_counts(ref_genome, ref_anno, params.ndr, bams)
+	stage_wise_de_analysis(get_counts.out.genes, get_counts.out.ext_anno, sample_sheet, acronym_list)
+	stage_wise_dtu_analysis(get_counts.out.transcripts, get_counts.out.ext_anno, sample_sheet, acronym_list)
 }
 
 workflow.onComplete {
