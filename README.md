@@ -32,4 +32,5 @@ nextflow run main.nf \
     --ref_annotation 'annotation.gtf' \
     --ref_genome 'genome.fasta' \
     --sample_sheet 'samples.csv'
+    --acronym_sheet 'acronym_sheet.csv"
 ```
